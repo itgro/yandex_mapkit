@@ -7,19 +7,18 @@ import 'yandex_map_controller.dart';
 class YandexMap extends StatefulWidget {
   static const String viewType = 'yandex_mapkit/yandex_map';
 
-  final Function onMapCreated;
+  final Function onCreated;
 
-  /// A `Widget` for displaying Yandex Map
   const YandexMap({
     Key key,
-    this.onMapCreated
+    this.onCreated
   }) : super(key: key);
 
   @override
-  YandexMapState createState() => YandexMapState();
+  _YandexMapState createState() => _YandexMapState();
 }
 
-class YandexMapState extends State<YandexMap> {
+class _YandexMapState extends State<YandexMap> {
   YandexMapController _controller;
 
   @override
@@ -43,8 +42,15 @@ class YandexMapState extends State<YandexMap> {
     }
   }
 
-  void _onPlatformViewCreated(int id) {
-    _controller = YandexMapController.init(id);
-    widget?.onMapCreated(_controller);
+  void _onPlatformViewCreated(int viewId) {
+    _controller = YandexMapController.fromViewId(viewId);
+
+    widget?.onCreated(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
   }
 }

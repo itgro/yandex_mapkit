@@ -1,156 +1,105 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:yandex_mapkit/src/events.dart';
 
 import 'map_animation.dart';
 import 'placemark.dart';
-import 'point.dart';
+import 'entities.dart';
 
-class YandexMapController extends ChangeNotifier {
-  static const double kTilt = 0.0;
-  static const double kAzimuth = 0.0;
-  static const double kZoom = 15.0;
-
+class YandexMapController {
   final MethodChannel _channel;
 
-  final List<Placemark> placemarks = [];
+  final _cameraPositionController = StreamController<CameraPositionEvent>();
 
-  YandexMapController._(channel)
-      : _channel = channel {
+  Stream<CameraPositionEvent> get onCameraPositionChanged =>
+      _cameraPositionController.stream;
+
+  YandexMapController(MethodChannel channel) : _channel = channel {
     _channel.setMethodCallHandler(_handleMethodCall);
   }
 
-  static YandexMapController init(int id) {
-    final MethodChannel methodChannel = MethodChannel('yandex_mapkit/yandex_map_$id');
-
-    return YandexMapController._(methodChannel);
+  dispose() {
+    _cameraPositionController.close();
   }
 
-  /// Shows an icon at current user location
-  ///
-  /// Requires location permissions:
-  ///
-  /// `NSLocationWhenInUseUsageDescription`
-  ///
-  /// `android.permission.ACCESS_FINE_LOCATION`
-  ///
-  /// Does nothing if these permissions where denied
-  Future<void> showUserLayer({@required String iconName}) async {
-    await _channel.invokeMethod(
-      'showUserLayer',
-      {
-        'iconName': iconName
-      }
-    );
-  }
-
-  /// Hides an icon at current user location
-  ///
-  /// Requires location permissions:
-  ///
-  /// `NSLocationWhenInUseUsageDescription`
-  ///
-  /// `android.permission.ACCESS_FINE_LOCATION`
-  ///
-  /// Does nothing if these permissions where denied
-  Future<void> hideUserLayer() async {
-    await _channel.invokeMethod('hideUserLayer');
-  }
+  factory YandexMapController.fromViewId(int id) => YandexMapController(
+        MethodChannel('yandex_mapkit/yandex_map_$id'),
+      );
 
   Future<void> move({
     @required Point point,
-    double zoom = kZoom,
-    double azimuth = kAzimuth,
-    double tilt = kTilt,
-    MapAnimation animation
-  }) async {
-    await _channel.invokeMethod(
+    double zoom = 14.4,
+    double azimuth = 0.0,
+    double tilt = 0.0,
+    MapAnimation animation,
+  }) {
+    return _channel.invokeMethod(
       'move',
-      {
-        'latitude': point.latitude,
-        'longitude': point.longitude,
+      json.encode({
+        'point': point.toMap(),
         'zoom': zoom,
         'azimuth': azimuth,
         'tilt': tilt,
         'animate': animation != null,
         'smoothAnimation': animation?.smooth,
         'animationDuration': animation?.duration
-      }
+      }),
     );
   }
 
-  Future<void> setBounds({
-    @required Point southWestPoint,
-    @required Point northEastPoint,
-    MapAnimation animation
-  }) async {
-    await _channel.invokeMethod(
-      'setBounds',
-      {
-        'southWestLatitude': southWestPoint.latitude,
-        'southWestLongitude': southWestPoint.longitude,
-        'northEastLatitude': northEastPoint.latitude,
-        'northEastLongitude': northEastPoint.longitude,
-        'animate': animation != null,
-        'smoothAnimation': animation?.smooth,
-        'animationDuration': animation?.duration
-      }
+//  Future<void> addPlacemark(Placemark placemark) {
+//    return _channel.invokeMethod('addPlacemark', placemark.toMap());
+//  }
+//
+//  Future<void> removePlacemark(Placemark placemark) {
+//    return _channel
+//        .invokeMethod('removePlacemark', {'hashCode': placemark.hashCode});
+//  }
+
+  Future<void> addPolygon({
+    @required List<Point> points,
+    @required Color fillColor,
+    @required Color strokeColor,
+    @required double strokeWidth,
+    @required double zIndex,
+  }) {
+    return _channel.invokeMethod(
+      "addPolygon",
+      json.encode({
+        "points": points
+            .map<Map>((Point point) => point.toMap())
+            .toList(growable: false),
+        "fillColor": fillColor.value,
+        "strokeColor": strokeColor.value,
+        "strokeWidth": strokeWidth,
+        "zIndex": zIndex,
+      }),
     );
-  }
-
-  /// Does nothing if passed `Placemark` is `null`
-  Future<void> addPlacemark(Placemark placemark) async {
-    if (placemark != null) {
-      await _channel.invokeMethod('addPlacemark', _placemarkParams(placemark));
-      placemarks.add(placemark);
-    }
-  }
-
-  // Does nothing if passed `Placemark` wasn't added before
-  Future<void> removePlacemark(Placemark placemark) async {
-    if (placemarks.remove(placemark)) {
-      await _channel.invokeMethod(
-        'removePlacemark',
-        {
-          'hashCode': placemark.hashCode
-        }
-      );
-    }
   }
 
   Future<void> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
-      case 'onMapObjectTap':
-        _onMapObjectTap(call.arguments);
+//      case 'onMapObjectTap':
+//        _onMapObjectTap(call.arguments);
+//        break;
+      case 'onCameraPositionChanged':
+        _onCameraPositionChanged(call.arguments);
         break;
       default:
         throw MissingPluginException();
     }
   }
 
-  void _onMapObjectTap(dynamic arguments) {
-    int hashCode = arguments['hashCode'];
-    double latitude = arguments['latitude'];
-    double longitude = arguments['longitude'];
+//  void _onMapObjectTap(dynamic arguments) {
+//    debugPrint(arguments.toString());
+//  }
 
-    Placemark placemark = placemarks.
-      firstWhere((Placemark placemark) => placemark.hashCode == hashCode, orElse: () => null);
-
-    if (placemark != null) {
-      placemark.onTap(latitude, longitude);
-    }
-  }
-
-  Map<String, dynamic> _placemarkParams(Placemark placemark) {
-    return {
-      'latitude': placemark.point.latitude,
-      'longitude': placemark.point.longitude,
-      'opacity': placemark.opacity,
-      'isDraggable': placemark.isDraggable,
-      'iconName': placemark.iconName,
-      'hashCode': placemark.hashCode
-    };
+  void _onCameraPositionChanged(String arguments) {
+    _cameraPositionController.sink
+        .add(CameraPositionEvent.fromString(arguments));
   }
 }

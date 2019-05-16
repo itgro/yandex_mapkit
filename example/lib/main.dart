@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yandex_mapkit/yandex_mapkit.dart';
 
 void main() async {
-  await YandexMapkit.setup(apiKey: 'YOUR_API_KEY');
+  await YandexMapkit.setup(apiKey: '2c701245-ce40-4d13-ae8d-f4b9b51caa9d');
   runApp(MyApp());
 }
 
@@ -12,11 +12,11 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  static Point _point = Point(latitude: 59.945933, longitude: 30.320045);
+  static Point _point = Point(56.837626, 60.597405);
   YandexMapController _yandexMapController;
   Placemark _placemark = Placemark(
     point: _point,
-    iconName: 'lib/assets/place.png',
+    icon: 'lib/assets/place.png',
     onTap: (latitude, longitude) => print('Tapped me at $latitude,$longitude')
   );
 
@@ -29,67 +29,45 @@ class _MyAppState extends State<MyApp> {
         ),
         body: Column(
           children: [
-            Row(
-              children: <Widget>[
-                RaisedButton(
-                  onPressed: () async {
-                    await _yandexMapController.addPlacemark(_placemark);
-                  },
-                  child: Text('Add placemark')
-                ),
-                RaisedButton(
-                  onPressed: () async {
-                    await _yandexMapController.removePlacemark(_placemark);
-                  },
-                  child: Text('Remove placemark')
-                ),
-              ],
-            ),
-            Row(
-              children: <Widget>[
-                RaisedButton(
-                  onPressed: () async {
-                    await _yandexMapController.setBounds(
-                      southWestPoint: Point(latitude: 60.0, longitude: 30.0),
-                      northEastPoint: Point(latitude: 65.0, longitude: 40.0),
-                    );
-                  },
-                  child: Text('setBounds')
-                ),
-                RaisedButton(
-                  onPressed: () async {
-                    await _yandexMapController.move(
-                      point: _point,
-                      animation: MapAnimation(smooth: true, duration: 2.0)
-                    );
-                  },
-                  child: Text('Move')
-                ),
-              ],
-            ),
-            Row(
-              children: <Widget>[
-                RaisedButton(
-                  onPressed: () async {
-                    await _yandexMapController.showUserLayer(iconName: 'lib/assets/user.png');
-                  },
-                  child: Text('Show User')
-                ),
-                RaisedButton(
-                  onPressed: () async {
-                    await _yandexMapController.hideUserLayer();
-                  },
-                  child: Text('Hide User')
-                )
-              ],
-            ),
             Expanded(
               child: YandexMap(
-                onMapCreated: (controller) async {
+                onCreated: (YandexMapController controller) async {
                   _yandexMapController = controller;
 
-                  await _yandexMapController.removePlacemark(_placemark);
-                  await _yandexMapController.addPlacemark(_placemark);
+                  Point defaultPoint = new Point(56.837626, 60.597405);
+
+                  List<Point> points = [
+                    new Point(
+                      defaultPoint.latitude + 0.0015,
+                      defaultPoint.longitude - 0.0015,
+                    ),
+                    new Point(
+                      defaultPoint.latitude - 0.0015,
+                      defaultPoint.longitude - 0.0015,
+                    ),
+                    new Point(
+                      defaultPoint.latitude,
+                      defaultPoint.longitude + 0.0015,
+                    ),
+                  ];
+
+                  controller.addPolygon(
+                    points: points,
+                    fillColor: Color(0xFF70C3BE).withOpacity(0.51),
+                    strokeColor: Color(0xFFF9F4F4),
+                    strokeWidth: 1,
+                    zIndex: 10,
+                  );
+
+                  controller.onCameraPositionChanged.listen((CameraPositionEvent event) {
+                    print(event);
+                  });
+
+                  await controller.move(
+                    point: _point,
+                    animation: MapAnimation(smooth: true, duration: 2.0),
+//                      zoom: 14.4,
+                  );
                 },
               )
             )
