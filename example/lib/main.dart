@@ -12,7 +12,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  static Point _point = Point(56.837626, 60.597405);
   YandexMapController _yandexMapController;
 
   @override
@@ -46,7 +45,7 @@ class _MyAppState extends State<MyApp> {
               fillColor: Color(0xFF70C3BE).withOpacity(0.51),
               strokeColor: Color(0xFFF9F4F4),
               strokeWidth: 1,
-              zIndex: 10,
+              zIndex: 1000,
             );
 
             controller.onCameraPositionChanged
@@ -55,7 +54,9 @@ class _MyAppState extends State<MyApp> {
             });
 
             await controller.move(
-              point: _point,
+              position: Position(
+                target: defaultPoint,
+              ),
               animation: MapAnimation(
                 smooth: true,
               ),

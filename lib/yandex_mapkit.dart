@@ -5,7 +5,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-export 'src/map_animation.dart';
 export 'src/placemark.dart';
 export 'src/entities.dart';
 export 'src/events.dart';

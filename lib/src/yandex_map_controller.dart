@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:yandex_mapkit/src/events.dart';
 
-import 'map_animation.dart';
 import 'placemark.dart';
 import 'entities.dart';
 
@@ -31,22 +30,14 @@ class YandexMapController {
       );
 
   Future<void> move({
-    @required Point point,
-    double zoom = 14.4,
-    double azimuth = 0.0,
-    double tilt = 0.0,
+    @required Position position,
     MapAnimation animation,
   }) {
     return _channel.invokeMethod(
       'move',
       json.encode({
-        'point': point.toMap(),
-        'zoom': zoom,
-        'azimuth': azimuth,
-        'tilt': tilt,
-        'animate': animation != null,
-        'smoothAnimation': animation?.smooth,
-        'animationDuration': animation?.duration
+        'position': position.toMap(),
+        'animation': animation.toMap(),
       }),
     );
   }

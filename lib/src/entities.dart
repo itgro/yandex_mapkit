@@ -43,33 +43,78 @@ class Position {
   final double zoom;
   final double azimuth;
 
-  Position({this.target, this.tilt, this.zoom, this.azimuth});
+  Position({
+    @required this.target,
+    this.tilt = 0.0,
+    this.zoom = 14.4,
+    this.azimuth = 0.0,
+  });
 
   @override
   String toString() =>
       'Position{target: $target, tilt: $tilt, zoom: $zoom, azimuth: $azimuth}';
 
+  Map toMap() => {
+        "target": target.toMap(),
+        "tilt": tilt,
+        "zoom": zoom,
+        "azimuth": azimuth,
+      };
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is Position &&
-              runtimeType == other.runtimeType &&
-              target == other.target &&
-              tilt == other.tilt &&
-              zoom == other.zoom &&
-              azimuth == other.azimuth;
+      other is Position &&
+          runtimeType == other.runtimeType &&
+          target == other.target &&
+          tilt == other.tilt &&
+          zoom == other.zoom &&
+          azimuth == other.azimuth;
 
   @override
   int get hashCode =>
-      target.hashCode ^
-      tilt.hashCode ^
-      zoom.hashCode ^
-      azimuth.hashCode;
+      target.hashCode ^ tilt.hashCode ^ zoom.hashCode ^ azimuth.hashCode;
 
   factory Position.fromMap(Map map) => Position(
         target: Point.fromMap(map['target']),
         tilt: map['tilt'] as double,
         zoom: map['zoom'] as double,
         azimuth: map['azimuth'] as double,
+      );
+}
+
+class MapAnimation {
+  final Duration duration;
+  final bool smooth;
+
+  const MapAnimation({
+    this.smooth = true,
+    this.duration = const Duration(seconds: 1),
+  });
+
+  Map toMap() {
+    return {
+      "smooth": smooth,
+      "duration": duration.inMilliseconds,
+    };
+  }
+
+  @override
+  String toString() => 'MapAnimation{duration: $duration, smooth: $smooth}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MapAnimation &&
+          runtimeType == other.runtimeType &&
+          duration == other.duration &&
+          smooth == other.smooth;
+
+  @override
+  int get hashCode => duration.hashCode ^ smooth.hashCode;
+
+  factory MapAnimation.fromMap(Map map) => MapAnimation(
+        smooth: map['smooth'] as bool,
+        duration: Duration(milliseconds: map['duration'] as int),
       );
 }

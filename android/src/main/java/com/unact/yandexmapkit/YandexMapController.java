@@ -1,32 +1,28 @@
 package com.unact.yandexmapkit;
 
-import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageManager;
-import androidx.core.app.ActivityCompat;
+import android.util.Log;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.yandex.mapkit.Animation;
 import com.yandex.mapkit.MapKitFactory;
-import com.yandex.mapkit.geometry.BoundingBox;
+import com.yandex.mapkit.geometry.LinearRing;
 import com.yandex.mapkit.geometry.Point;
-import com.yandex.mapkit.layers.ObjectEvent;
+import com.yandex.mapkit.geometry.Polygon;
+import com.yandex.mapkit.map.CameraListener;
 import com.yandex.mapkit.map.CameraPosition;
-import com.yandex.mapkit.map.MapObject;
-import com.yandex.mapkit.map.MapObjectCollection;
-import com.yandex.mapkit.map.MapObjectTapListener;
-import com.yandex.mapkit.map.PlacemarkMapObject;
+import com.yandex.mapkit.map.CameraUpdateSource;
+import com.yandex.mapkit.map.PolygonMapObject;
 import com.yandex.mapkit.mapview.MapView;
-import com.yandex.mapkit.user_location.UserLocationLayer;
-import com.yandex.mapkit.user_location.UserLocationObjectListener;
-import com.yandex.mapkit.user_location.UserLocationView;
-import com.yandex.runtime.image.ImageProvider;
+import com.yandex.mapkit.map.Map;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -34,201 +30,214 @@ import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.platform.PlatformView;
 
 
-public class YandexMapController implements PlatformView, MethodChannel.MethodCallHandler {
-  private final MapView mapView;
-  private final MethodChannel methodChannel;
-  private final PluginRegistry.Registrar pluginRegistrar;
-  private YandexUserLocationObjectListener yandexUserLocationObjectListener;
-  private YandexMapObjectTapListener yandexMapObjectTapListener;
-  private List<PlacemarkMapObject> placemarks = new ArrayList<>();
-  private String userLocationIconName;
+public class YandexMapController implements PlatformView, MethodChannel.MethodCallHandler, Map.CameraCallback {
+    private final MapView mapView;
+    private final MethodChannel methodChannel;
 
-  public YandexMapController(int id, Context context, PluginRegistry.Registrar registrar) {
-    MapKitFactory.initialize(context);
-    mapView = new MapView(context);
-    MapKitFactory.getInstance().onStart();
-    mapView.onStart();
-    pluginRegistrar = registrar;
-    yandexMapObjectTapListener = new YandexMapObjectTapListener();
-    yandexUserLocationObjectListener = new YandexUserLocationObjectListener(registrar);
-    methodChannel = new MethodChannel(registrar.messenger(), "yandex_mapkit/yandex_map_" + id);
-    methodChannel.setMethodCallHandler(this);
-  }
+    public YandexMapController(int id, Context context, PluginRegistry.Registrar registrar) {
+        MapKitFactory.initialize(context);
 
-  @Override
-  public View getView() {
-    return mapView;
-  }
+        mapView = new MapView(context);
 
-  @Override
-  public void dispose() {
-    mapView.onStop();
-    MapKitFactory.getInstance().onStop();
-  }
+        MapKitFactory.getInstance().onStart();
 
-  @SuppressWarnings("unchecked")
-  private void showUserLayer(MethodCall call) {
-    if (!hasLocationPermission()) return;
+        mapView.onStart();
 
-    Map<String, Object> params = ((Map<String, Object>) call.arguments);
-    userLocationIconName = (String) params.get("iconName");
+        methodChannel = new MethodChannel(registrar.messenger(), "yandex_mapkit/yandex_map_" + id);
+        methodChannel.setMethodCallHandler(this);
 
-    UserLocationLayer userLocationLayer = mapView.getMap().getUserLocationLayer();
-    userLocationLayer.setEnabled(true);
-    userLocationLayer.setHeadingEnabled(true);
-    userLocationLayer.setObjectListener(yandexUserLocationObjectListener);
-  }
-
-  private void hideUserLayer() {
-    if (!hasLocationPermission()) return;
-
-    UserLocationLayer userLocationLayer = mapView.getMap().getUserLocationLayer();
-    userLocationLayer.setEnabled(false);
-  }
-
-  @SuppressWarnings("unchecked")
-  private void move(MethodCall call) {
-    Map<String, Object> params = ((Map<String, Object>) call.arguments);
-    Point point = new Point(((Double) params.get("latitude")), ((Double) params.get("longitude")));
-    CameraPosition cameraPosition = new CameraPosition(
-        point,
-        ((Double) params.get("zoom")).floatValue(),
-        ((Double) params.get("azimuth")).floatValue(),
-        ((Double) params.get("tilt")).floatValue()
-    );
-
-    moveWithParams(params, cameraPosition);
-  }
-
-  @SuppressWarnings("unchecked")
-  private void setBounds(MethodCall call) {
-    Map<String, Object> params = ((Map<String, Object>) call.arguments);
-    BoundingBox boundingBox = new BoundingBox(
-        new Point(((Double) params.get("southWestLatitude")), ((Double) params.get("southWestLongitude"))),
-        new Point(((Double) params.get("northEastLatitude")), ((Double) params.get("northEastLongitude")))
-    );
-
-    moveWithParams(params, mapView.getMap().cameraPosition(boundingBox));
-  }
-
-  @SuppressWarnings("unchecked")
-  private void addPlacemark(MethodCall call) {
-    addPlacemarkToMap(((Map<String, Object>) call.arguments));
-  }
-
-  @SuppressWarnings("unchecked")
-  private void removePlacemark(MethodCall call) {
-    Map<String, Object> params = ((Map<String, Object>) call.arguments);
-    MapObjectCollection mapObjects = mapView.getMap().getMapObjects();
-    Iterator<PlacemarkMapObject> iterator = placemarks.iterator();
-
-    while (iterator.hasNext()) {
-      PlacemarkMapObject placemarkMapObject = iterator.next();
-      if (placemarkMapObject.getUserData().equals(params.get("hashCode"))) {
-        mapObjects.remove(placemarkMapObject);
-        iterator.remove();
-      }
-    }
-  }
-
-  private void addPlacemarkToMap(Map<String, Object> params) {
-    Point point = new Point(((Double) params.get("latitude")), ((Double) params.get("longitude")));
-    MapObjectCollection mapObjects = mapView.getMap().getMapObjects();
-    PlacemarkMapObject placemark = mapObjects.addPlacemark(point);
-    String iconName = (String) params.get("iconName");
-
-    placemark.setUserData(params.get("hashCode"));
-    placemark.setOpacity(((Double) params.get("opacity")).floatValue());
-    placemark.setDraggable((Boolean) params.get("isDraggable"));
-    placemark.addTapListener(yandexMapObjectTapListener);
-
-    if (iconName != null) {
-      placemark.setIcon(ImageProvider.fromAsset(mapView.getContext(), pluginRegistrar.lookupKeyForAsset(iconName)));
+        mapView.getMap().addCameraListener(new YandexCameraListener());
     }
 
-    placemarks.add(placemark);
-  }
-
-  private void moveWithParams(Map<String, Object> params, CameraPosition cameraPosition) {
-    if (((Boolean) params.get("animate"))) {
-      Animation.Type type = ((Boolean) params.get("smoothAnimation")) ? Animation.Type.SMOOTH : Animation.Type.LINEAR;
-      Animation animation = new Animation(type, ((Double) params.get("animationDuration")).floatValue());
-
-      mapView.getMap().move(cameraPosition, animation, null);
-    } else {
-      mapView.getMap().move(cameraPosition);
-    }
-  }
-
-  private boolean hasLocationPermission() {
-    int permissionState = ActivityCompat.checkSelfPermission(mapView.getContext(), Manifest.permission.ACCESS_FINE_LOCATION);
-    return permissionState == PackageManager.PERMISSION_GRANTED;
-  }
-
-  @Override
-  public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-    switch (call.method) {
-      case "showUserLayer":
-        showUserLayer(call);
-        result.success(null);
-        break;
-      case "hideUserLayer":
-        hideUserLayer();
-        result.success(null);
-        break;
-      case "move":
-        move(call);
-        result.success(null);
-        break;
-      case "setBounds":
-        setBounds(call);
-        result.success(null);
-        break;
-      case "addPlacemark":
-        addPlacemark(call);
-        result.success(null);
-        break;
-      case "removePlacemark":
-        removePlacemark(call);
-        result.success(null);
-        break;
-      default:
-        result.notImplemented();
-        break;
-    }
-  }
-
-  private class YandexUserLocationObjectListener implements UserLocationObjectListener {
-    private PluginRegistry.Registrar pluginRegistrar;
-
-    private YandexUserLocationObjectListener(PluginRegistry.Registrar pluginRegistrar) {
-      this.pluginRegistrar = pluginRegistrar;
+    @Override
+    public View getView() {
+        return mapView;
     }
 
-    public void onObjectAdded(UserLocationView view) {
-      view.getPin().setIcon(
-          ImageProvider.fromAsset(
-              pluginRegistrar.activity(),
-              pluginRegistrar.lookupKeyForAsset(userLocationIconName)
-          )
-      );
+    @Override
+    public void dispose() {
+        mapView.onStop();
+        MapKitFactory.getInstance().onStop();
     }
 
-    public void onObjectRemoved(UserLocationView view) {}
+    @SuppressWarnings("unchecked")
+    private void move(MethodCall call) {
+        JsonCameraMoveParameters params = new Gson().fromJson(
+                (String) call.arguments,
+                JsonCameraMoveParameters.class
+        );
 
-    public void onObjectUpdated(UserLocationView view, ObjectEvent event) {}
-  }
+        CameraPosition position = params.position.toCameraPosition();
+        Animation animation = params.getAnimation();
 
-  private class YandexMapObjectTapListener implements MapObjectTapListener {
-    public boolean onMapObjectTap(MapObject mapObject, Point point) {
-      Map<String, Object> arguments = new HashMap<>();
-      arguments.put("hashCode", mapObject.getUserData());
-      arguments.put("latitude", point.getLatitude());
-      arguments.put("longitude", point.getLongitude());
-
-      methodChannel.invokeMethod("onMapObjectTap", arguments);
-
-      return true;
+        if (animation != null) {
+            mapView.getMap().move(position, animation, this);
+        } else {
+            mapView.getMap().move(position);
+        }
     }
-  }
+
+    @SuppressWarnings("unchecked")
+    private void addPolygon(MethodCall call) {
+        JsonPolygon params = new Gson().fromJson(
+                (String) call.arguments,
+                JsonPolygon.class
+        );
+
+        Polygon polygon = params.getPolygon();
+
+        PolygonMapObject mapObject = mapView.getMap().getMapObjects().addPolygon(polygon);
+        mapObject.setFillColor((int) params.fillColor);
+        mapObject.setStrokeColor((int) params.strokeColor);
+        mapObject.setStrokeWidth(params.strokeWidth);
+        mapObject.setZIndex(params.zIndex);
+    }
+
+    @Override
+    public void onMethodCall(MethodCall call, MethodChannel.Result result) {
+        switch (call.method) {
+            case "move":
+                move(call);
+                result.success(null);
+                break;
+            case "addPolygon":
+                addPolygon(call);
+                result.success(null);
+                break;
+            default:
+                result.notImplemented();
+                break;
+        }
+    }
+
+    @Override
+    public void onMoveFinished(boolean b) {
+    }
+
+    private class JsonPoint {
+        double latitude;
+        double longitude;
+
+        JsonPoint(double latitude, double longitude) {
+            this.latitude = latitude;
+            this.longitude = longitude;
+        }
+
+        JsonPoint(Point point) {
+            this.latitude = point.getLatitude();
+            this.longitude = point.getLongitude();
+        }
+
+        Point toPoint() {
+            return new Point(latitude, longitude);
+        }
+    }
+
+    private class JsonPosition {
+        JsonPoint target;
+        float azimuth;
+        float tilt;
+        float zoom;
+
+        JsonPosition(JsonPoint target, float azimuth, float tilt, float zoom) {
+            this.target = target;
+            this.azimuth = azimuth;
+            this.tilt = tilt;
+            this.zoom = zoom;
+        }
+
+        JsonPosition(CameraPosition position) {
+            this.target = new JsonPoint(position.getTarget());
+            this.azimuth = position.getAzimuth();
+            this.tilt = position.getTilt();
+            this.zoom = position.getZoom();
+        }
+
+        CameraPosition toCameraPosition() {
+            return new CameraPosition(target.toPoint(), zoom, azimuth, tilt);
+        }
+    }
+
+    private class JsonPolygon {
+        LinkedList<JsonPoint> points;
+        long fillColor;
+        long strokeColor;
+        float strokeWidth;
+        float zIndex;
+
+        JsonPolygon(LinkedList<JsonPoint> points, int fillColor, int strokeColor, float strokeWidth, float zIndex) {
+            this.points = points;
+            this.fillColor = fillColor;
+            this.strokeColor = strokeColor;
+            this.strokeWidth = strokeWidth;
+            this.zIndex = zIndex;
+        }
+
+        Polygon getPolygon() {
+            List<Point> polygonPoints = new ArrayList<>();
+
+            for (JsonPoint point : points) {
+                polygonPoints.add(point.toPoint());
+            }
+
+            return new Polygon(new LinearRing(polygonPoints), new ArrayList<LinearRing>());
+        }
+    }
+
+    private class JsonPositionChangedEvent {
+        JsonPosition position;
+        boolean finished;
+
+        JsonPositionChangedEvent(JsonPosition position, boolean finished) {
+            this.position = position;
+            this.finished = finished;
+        }
+
+        JsonPositionChangedEvent(CameraPosition position, boolean finished) {
+            this.position = new JsonPosition(position);
+            this.finished = finished;
+        }
+    }
+
+    private class JsonCameraAnimation {
+        long duration; // duration in miliseconds
+        boolean smooth;
+
+        JsonCameraAnimation(boolean smooth, int duration) {
+            this.smooth = smooth;
+            this.duration = duration;
+        }
+    }
+
+    private class JsonCameraMoveParameters {
+        JsonPosition position;
+        JsonCameraAnimation animation;
+
+        JsonCameraMoveParameters(JsonPosition position, JsonCameraAnimation animation) {
+            this.position = position;
+            this.animation = animation;
+        }
+
+        Animation getAnimation() {
+            if (this.animation != null) {
+                Animation.Type type = this.animation.smooth
+                        ? Animation.Type.SMOOTH
+                        : Animation.Type.LINEAR;
+
+                float duration = (float) this.animation.duration / 1000;
+
+                return new Animation(type, duration);
+            }
+
+            return null;
+        }
+    }
+
+    private class YandexCameraListener implements CameraListener {
+        @Override
+        public void onCameraPositionChanged(@NonNull Map map, @NonNull CameraPosition position, @NonNull CameraUpdateSource cameraUpdateSource, boolean finished) {
+            JsonPositionChangedEvent event = new JsonPositionChangedEvent(position, finished);
+            methodChannel.invokeMethod("onCameraPositionChanged", new Gson().toJson(event));
+        }
+    }
 }
