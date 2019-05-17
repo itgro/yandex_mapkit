@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+double _double(source) => double.tryParse(source.toString()) ?? .0;
+
 @immutable
 class Point {
   final double _latitude;
@@ -33,7 +35,10 @@ class Point {
   String toString() => 'Point{_latitude: $_latitude, _longitude: $_longitude}';
 
   factory Point.fromMap(Map map) {
-    return Point(map['latitude'] as double, map['longitude'] as double);
+    return Point(
+      _double(map['latitude']),
+      _double(map['longitude']),
+    );
   }
 }
 
@@ -77,9 +82,9 @@ class Position {
 
   factory Position.fromMap(Map map) => Position(
         target: Point.fromMap(map['target']),
-        tilt: map['tilt'] as double,
-        zoom: map['zoom'] as double,
-        azimuth: map['azimuth'] as double,
+        tilt: _double(map['tilt']),
+        zoom: _double(map['zoom']),
+        azimuth: _double(map['azimuth']),
       );
 }
 
