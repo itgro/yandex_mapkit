@@ -3,62 +3,6 @@ import Flutter
 import UIKit
 import YandexMapKit
 
-struct Point: Codable {
-    let latitude: Double
-    let longitude: Double
-}
-
-struct Position: Codable {
-    let azimuth: Float
-    let target: Point
-    let tilt: Float
-    let zoom: Float
-}
-
-struct Polygon: Codable {
-    let points: [Point]
-    let fillColor: Int
-    let strokeColor: Int
-    let strokeWidth: Float
-    let zIndex: Float
-}
-
-struct PositionChangedEvent: Codable {
-    let position: Position
-    let finished: Bool
-}
-
-struct CameraAnimation: Codable {
-    let smooth: Bool
-    let duration: Int
-}
-
-struct CameraMoveParameters: Codable {
-    let position: Position
-    let animation: CameraAnimation?
-}
-
-extension YMKCameraPosition {
-    static func fromPosition(_ position: Position) -> YMKCameraPosition {
-        return YMKCameraPosition(
-                target: YMKPoint.fromPoint(position.target),
-                zoom: position.zoom,
-                azimuth: position.azimuth,
-                tilt: position.tilt
-        )
-    }
-}
-
-extension YMKPoint {
-    func toPoint() -> Point {
-        return Point(latitude: self.latitude, longitude: self.longitude);
-    }
-
-    static func fromPoint(_ point: Point) -> YMKPoint {
-        return YMKPoint(latitude: point.latitude, longitude: point.longitude)
-    }
-}
-
 extension FlutterMethodCall {
     func fromJson<T>(_ type: T.Type) throws -> T where T: Decodable {
         let jsonString = self.arguments as! String;
@@ -112,30 +56,22 @@ public class YandexMapController: NSObject, FlutterPlatformView {
     }
 
     private func move(_ call: FlutterMethodCall) {
-        let params: CameraMoveParameters = try! call.fromJson(CameraMoveParameters.self)
-        let position = YMKCameraPosition.fromPosition(params.position)
+        let params: JsonCameraMoveParameters = try! call.fromJson(JsonCameraMoveParameters.self)
+        let position = params.position.toCameraPosition()
+        let animation = params.getAnimation()
 
-        if (params.animation != nil) {
-            let type = params.animation?.smooth ?? false ? YMKAnimationType.smooth : YMKAnimationType.linear
-            let animationType = YMKAnimation(type: type, duration: Float(params.animation?.duration ?? 0) / Float(1000))
-
-            mapView.mapWindow.map.move(with: position, animationType: animationType)
+        if (animation != nil) {
+            mapView.mapWindow.map.move(with: position, animationType: animation ?? YMKAnimation())
         } else {
             mapView.mapWindow.map.move(with: position)
         }
     }
 
     private func addPolygon(_ call: FlutterMethodCall) {
-        let polygon: Polygon = try! call.fromJson(Polygon.self)
-
-        var points = [YMKPoint]()
-
-        for point in polygon.points {
-            points.append(YMKPoint.fromPoint(point))
-        }
+        let polygon: JsonPolygon = try! call.fromJson(JsonPolygon.self)
 
         let mapObjects = mapView.mapWindow.map.mapObjects
-        let mapObject = mapObjects.addPolygon(with: YMKPolygon(outerRing: YMKLinearRing(points: points), innerRings: []))
+        let mapObject = mapObjects.addPolygon(with: polygon.getPolygon())
 
         mapObject.fillColor = UIColor.fromInteger(polygon.fillColor)
         mapObject.strokeColor = UIColor.fromInteger(polygon.strokeColor)
@@ -151,12 +87,7 @@ public class YandexMapController: NSObject, FlutterPlatformView {
         }
 
         func onCameraPositionChanged(with map: YMKMap, cameraPosition: YMKCameraPosition, cameraUpdateSource: YMKCameraUpdateSource, finished: Bool) -> Void {
-            let target = Point(latitude: cameraPosition.target.latitude, longitude: cameraPosition.target.longitude)
-            let position = Position(azimuth: cameraPosition.azimuth, target: target, tilt: cameraPosition.tilt, zoom: cameraPosition.zoom)
-            let event = PositionChangedEvent(position: position, finished: finished)
-
-            let encoder = JSONEncoder()
-            let data = try! encoder.encode(event)
+            let data = try! JSONEncoder().encode(JsonCameraPositionChangedEvent(position: cameraPosition, finished: finished))
             let arguments = String(data: data, encoding: .utf8)
 
             methodChannel.invokeMethod("onCameraPositionChanged", arguments: arguments)
