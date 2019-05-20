@@ -76,11 +76,19 @@ class _MyAppState extends State<MyApp> {
                         ]),
                         onSuccess: (SearchResult result) {
                           if (result.items.isNotEmpty) {
+                            if (result.items.first.address.components.last.kinds.contains('house')) {
+                              print("all right! its address");
+                            } else {
+                              print("fuck! it's other");
+                            }
+
                             setState(
                                 () => currentName = result.items.first.name);
                           }
                         },
-                        onError: print,
+                        onError: (String error) {
+                          print("ERROR!! $error}");
+                        },
                       );
                     }
                   });

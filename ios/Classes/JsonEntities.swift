@@ -197,13 +197,114 @@ public class JsonSubmitWithPointParameters: Codable {
     }
 }
 
+public class JsonAddressComponent: Codable {
+    let name: String
+    let kinds: [String]
+
+    public init(component: YMKSearchAddressComponent) {
+        self.name = component.name
+
+        var kinds = [String]()
+
+        for kind in component.kinds {
+            switch kind.uintValue {
+            case YMKSearchComponentKind.country.rawValue:
+                kinds.append("country")
+                break;
+            case YMKSearchComponentKind.region.rawValue:
+                kinds.append("region")
+                break;
+            case YMKSearchComponentKind.province.rawValue:
+                kinds.append("province")
+                break;
+            case YMKSearchComponentKind.area.rawValue:
+                kinds.append("area")
+                break;
+            case YMKSearchComponentKind.locality.rawValue:
+                kinds.append("locality")
+                break;
+            case YMKSearchComponentKind.district.rawValue:
+                kinds.append("district")
+                break;
+            case YMKSearchComponentKind.street.rawValue:
+                kinds.append("street")
+                break;
+            case YMKSearchComponentKind.house.rawValue:
+                kinds.append("house")
+                break;
+            case YMKSearchComponentKind.entrance.rawValue:
+                kinds.append("entrance")
+                break;
+            case YMKSearchComponentKind.route.rawValue:
+                kinds.append("route")
+                break;
+            case YMKSearchComponentKind.station.rawValue:
+                kinds.append("station")
+                break;
+            case YMKSearchComponentKind.metroStation.rawValue:
+                kinds.append("metroStation")
+                break;
+            case YMKSearchComponentKind.railwayStation.rawValue:
+                kinds.append("railwayStation")
+                break;
+            case YMKSearchComponentKind.vegetation.rawValue:
+                kinds.append("vegetation")
+                break;
+            case YMKSearchComponentKind.hydro.rawValue:
+                kinds.append("hydro")
+                break;
+            case YMKSearchComponentKind.airport.rawValue:
+                kinds.append("airport")
+                break;
+            case YMKSearchComponentKind.other.rawValue:
+                kinds.append("other")
+                break;
+            default:
+                kinds.append("unknown")
+                break;
+            }
+        }
+
+        self.kinds = kinds
+    }
+}
+
+public class JsonAddress: Codable {
+    let formattedAddress: String?
+    let additionalInfo: String?
+    let postalCode: String?
+    let countryCode: String?
+    let components: [JsonAddressComponent]
+
+    public init(address: YMKSearchAddress) {
+        self.formattedAddress = address.formattedAddress
+        self.additionalInfo = address.additionalInfo
+        self.postalCode = address.postalCode
+        self.countryCode = address.countryCode
+
+        var components = [JsonAddressComponent]()
+
+        for component in address.components {
+            components.append(JsonAddressComponent(component: component))
+        }
+
+        self.components = components
+    }
+}
+
 public class JsonSearchResultItem: Codable {
     let name: String?
     let description: String?
+    let address: JsonAddress?
 
     public init(obj: YMKGeoObject) {
         self.name = obj.name
         self.description = obj.descriptionText
+
+        let toponym: YMKSearchToponymObjectMetadata =
+                obj.metadataContainer.getItemOf(YMKSearchToponymObjectMetadata.self) as! YMKSearchToponymObjectMetadata
+
+        self.address = JsonAddress(address: toponym.address)
     }
 }
 

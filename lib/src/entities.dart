@@ -200,20 +200,118 @@ class SubmitWithPointParameters {
 }
 
 @immutable
+class SearchResultItemAddressComponent {
+  final String name;
+  final List<String> kinds;
+
+  SearchResultItemAddressComponent({
+    this.name,
+    this.kinds,
+  });
+
+  @override
+  String toString() =>
+      'SearchResultItemAddressComponent{name: $name, kinds: $kinds}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchResultItemAddressComponent &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          kinds == other.kinds;
+
+  @override
+  int get hashCode => name.hashCode ^ kinds.hashCode;
+
+  factory SearchResultItemAddressComponent.fromMap(Map map) {
+    List<String> kinds = [];
+
+    if (map.containsKey('kinds')) {
+      var jsonItems = map['kinds'];
+
+      if (jsonItems is Iterable) {
+        for (String kind in jsonItems) {
+          kinds.add(kind);
+        }
+      }
+    }
+
+    return SearchResultItemAddressComponent(
+      name: map['name'] as String,
+      kinds: kinds,
+    );
+  }
+}
+
+@immutable
+class SearchResultItemAddress {
+  final String formattedAddress;
+  final String additionalInfo;
+  final String countryCode;
+  final String postalCode;
+  final List<SearchResultItemAddressComponent> components;
+
+  SearchResultItemAddress({
+    this.formattedAddress,
+    this.additionalInfo,
+    this.countryCode,
+    this.postalCode,
+    this.components,
+  });
+
+  @override
+  String toString() =>
+      'SearchResultItemAddress{formattedAddress: $formattedAddress, additionalInfo: $additionalInfo, countryCode: $countryCode, postalCode: $postalCode, components: $components}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchResultItemAddress &&
+          runtimeType == other.runtimeType &&
+          formattedAddress == other.formattedAddress &&
+          additionalInfo == other.additionalInfo &&
+          countryCode == other.countryCode &&
+          postalCode == other.postalCode &&
+          components == other.components;
+
+  @override
+  int get hashCode =>
+      formattedAddress.hashCode ^
+      additionalInfo.hashCode ^
+      countryCode.hashCode ^
+      postalCode.hashCode ^
+      components.hashCode;
+
+  factory SearchResultItemAddress.fromMap(Map map) => SearchResultItemAddress(
+        formattedAddress: map['formattedAddress'] as String,
+        additionalInfo: map['additionalInfo'] as String,
+        countryCode: map['countryCode'] as String,
+        postalCode: map['postalCode'] as String,
+        components: (map['components'] as List)
+            .map<SearchResultItemAddressComponent>((dynamic value) {
+          return SearchResultItemAddressComponent.fromMap(value);
+        }).toList(),
+      );
+}
+
+@immutable
 class SearchResultItem {
   final String name;
   final String description;
+  final SearchResultItemAddress address;
 
-  SearchResultItem({@required this.name, this.description});
+  SearchResultItem({@required this.name, this.description, this.address});
 
   factory SearchResultItem.fromMap(Map map) => SearchResultItem(
         name: map['name'] as String,
         description: map['description'] as String,
+        address: SearchResultItemAddress.fromMap(map['address']),
       );
 
   @override
   String toString() =>
-      'SearchResultItem{name: $name, description: $description}';
+      'SearchResultItem{name: $name, description: $description, address: $address}';
 
   @override
   bool operator ==(Object other) =>
@@ -221,10 +319,11 @@ class SearchResultItem {
       other is SearchResultItem &&
           runtimeType == other.runtimeType &&
           name == other.name &&
-          description == other.description;
+          description == other.description &&
+          address == other.address;
 
   @override
-  int get hashCode => name.hashCode ^ description.hashCode;
+  int get hashCode => name.hashCode ^ description.hashCode ^ address.hashCode;
 }
 
 @immutable
