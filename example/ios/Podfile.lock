@@ -1,0 +1,40 @@
+PODS:
+  - Flutter (1.0.0)
+  - yandex_mapkit (0.0.1):
+    - Flutter
+    - YandexMapKit (= 3.3.0)
+    - YandexMapKitSearch (= 3.3.0)
+    - YandexRuntime (= 3.3.0)
+  - YandexMapKit (3.3.0):
+    - YandexRuntime (~> 3.3)
+  - YandexMapKitSearch (3.3.0):
+    - YandexMapKit (~> 3.3)
+    - YandexRuntime (~> 3.3)
+  - YandexRuntime (3.3.0)
+
+DEPENDENCIES:
+  - Flutter (from `.symlinks/flutter/ios`)
+  - yandex_mapkit (from `.symlinks/plugins/yandex_mapkit/ios`)
+
+SPEC REPOS:
+  https://github.com/cocoapods/specs.git:
+    - YandexMapKit
+    - YandexMapKitSearch
+    - YandexRuntime
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: ".symlinks/flutter/ios"
+  yandex_mapkit:
+    :path: ".symlinks/plugins/yandex_mapkit/ios"
+
+SPEC CHECKSUMS:
+  Flutter: 9d0fac939486c9aba2809b7982dfdbb47a7b0296
+  yandex_mapkit: b9db4fe7cd3b883a06baa1a2ce9c1d43d197c92b
+  YandexMapKit: 99644ba65a665b9e6985a1f6dccb8e305408a10c
+  YandexMapKitSearch: dc48fc25d0bffc31c00357272dd65b6f96eb3fc4
+  YandexRuntime: f243159b9e273f089d6fe4c2b1b6640f04234f2e
+
+PODFILE CHECKSUM: e94cb8ccd5420ded8bd2601a44d8af8d412dd12b
+
+COCOAPODS: 1.5.3

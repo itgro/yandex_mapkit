@@ -8,6 +8,9 @@ import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.unact.yandexmapkit.YandexJsonConversion.JsonCameraMoveParameters;
+import com.unact.yandexmapkit.YandexJsonConversion.JsonPolygon;
+import com.unact.yandexmapkit.YandexJsonConversion.JsonPositionChangedEvent;
 import com.yandex.mapkit.Animation;
 import com.yandex.mapkit.MapKitFactory;
 import com.yandex.mapkit.geometry.LinearRing;
@@ -29,10 +32,10 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.platform.PlatformView;
 
-
 public class YandexMapController implements PlatformView, MethodChannel.MethodCallHandler, Map.CameraCallback {
     private final MapView mapView;
     private final MethodChannel methodChannel;
+    private final YandexCameraListener cameraListener;
 
     public YandexMapController(int id, Context context, PluginRegistry.Registrar registrar) {
         MapKitFactory.initialize(context);
@@ -46,7 +49,9 @@ public class YandexMapController implements PlatformView, MethodChannel.MethodCa
         methodChannel = new MethodChannel(registrar.messenger(), "yandex_mapkit/yandex_map_" + id);
         methodChannel.setMethodCallHandler(this);
 
-        mapView.getMap().addCameraListener(new YandexCameraListener());
+        cameraListener = new YandexCameraListener();
+
+        mapView.getMap().addCameraListener(cameraListener);
     }
 
     @Override
@@ -112,125 +117,6 @@ public class YandexMapController implements PlatformView, MethodChannel.MethodCa
 
     @Override
     public void onMoveFinished(boolean b) {
-    }
-
-    private class JsonPoint {
-        double latitude;
-        double longitude;
-
-        JsonPoint(double latitude, double longitude) {
-            this.latitude = latitude;
-            this.longitude = longitude;
-        }
-
-        JsonPoint(Point point) {
-            this.latitude = point.getLatitude();
-            this.longitude = point.getLongitude();
-        }
-
-        Point toPoint() {
-            return new Point(latitude, longitude);
-        }
-    }
-
-    private class JsonPosition {
-        JsonPoint target;
-        float azimuth;
-        float tilt;
-        float zoom;
-
-        JsonPosition(JsonPoint target, float azimuth, float tilt, float zoom) {
-            this.target = target;
-            this.azimuth = azimuth;
-            this.tilt = tilt;
-            this.zoom = zoom;
-        }
-
-        JsonPosition(CameraPosition position) {
-            this.target = new JsonPoint(position.getTarget());
-            this.azimuth = position.getAzimuth();
-            this.tilt = position.getTilt();
-            this.zoom = position.getZoom();
-        }
-
-        CameraPosition toCameraPosition() {
-            return new CameraPosition(target.toPoint(), zoom, azimuth, tilt);
-        }
-    }
-
-    private class JsonPolygon {
-        LinkedList<JsonPoint> points;
-        long fillColor;
-        long strokeColor;
-        float strokeWidth;
-        float zIndex;
-
-        JsonPolygon(LinkedList<JsonPoint> points, int fillColor, int strokeColor, float strokeWidth, float zIndex) {
-            this.points = points;
-            this.fillColor = fillColor;
-            this.strokeColor = strokeColor;
-            this.strokeWidth = strokeWidth;
-            this.zIndex = zIndex;
-        }
-
-        Polygon getPolygon() {
-            List<Point> polygonPoints = new ArrayList<>();
-
-            for (JsonPoint point : points) {
-                polygonPoints.add(point.toPoint());
-            }
-
-            return new Polygon(new LinearRing(polygonPoints), new ArrayList<LinearRing>());
-        }
-    }
-
-    private class JsonPositionChangedEvent {
-        JsonPosition position;
-        boolean finished;
-
-        JsonPositionChangedEvent(JsonPosition position, boolean finished) {
-            this.position = position;
-            this.finished = finished;
-        }
-
-        JsonPositionChangedEvent(CameraPosition position, boolean finished) {
-            this.position = new JsonPosition(position);
-            this.finished = finished;
-        }
-    }
-
-    private class JsonCameraAnimation {
-        long duration; // duration in miliseconds
-        boolean smooth;
-
-        JsonCameraAnimation(boolean smooth, int duration) {
-            this.smooth = smooth;
-            this.duration = duration;
-        }
-    }
-
-    private class JsonCameraMoveParameters {
-        JsonPosition position;
-        JsonCameraAnimation animation;
-
-        JsonCameraMoveParameters(JsonPosition position, JsonCameraAnimation animation) {
-            this.position = position;
-            this.animation = animation;
-        }
-
-        Animation getAnimation() {
-            if (this.animation != null) {
-                Animation.Type type = this.animation.smooth
-                        ? Animation.Type.SMOOTH
-                        : Animation.Type.LINEAR;
-
-                float duration = (float) this.animation.duration / 1000;
-
-                return new Animation(type, duration);
-            }
-
-            return null;
-        }
     }
 
     private class YandexCameraListener implements CameraListener {

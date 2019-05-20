@@ -3,24 +3,6 @@ import Flutter
 import UIKit
 import YandexMapKit
 
-extension FlutterMethodCall {
-    func fromJson<T>(_ type: T.Type) throws -> T where T: Decodable {
-        let jsonString = self.arguments as! String;
-        return try! JSONDecoder().decode(type, from: jsonString.data(using: .utf8)!)
-    }
-}
-
-extension UIColor {
-    static func fromInteger(_ intValue: Int) -> UIColor {
-        let alpha = CGFloat((intValue & 0xFF000000) >> 24) / 255.0
-        let red = CGFloat((intValue & 0x00FF0000) >> 16) / 255.0
-        let green = CGFloat((intValue & 0x0000FF00) >> 8) / 255.0
-        let blue = CGFloat(intValue & 0x000000FF) / 255.0
-
-        return UIColor(red: red, green: green, blue: blue, alpha: alpha)
-    }
-}
-
 public class YandexMapController: NSObject, FlutterPlatformView {
     private let methodChannel: FlutterMethodChannel!
     private let cameraPositionListener: CameraListener!

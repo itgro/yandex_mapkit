@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 double _double(source) => double.tryParse(source.toString()) ?? .0;
@@ -122,4 +124,144 @@ class MapAnimation {
         smooth: map['smooth'] as bool,
         duration: Duration(milliseconds: map['duration'] as int),
       );
+}
+
+enum SearchType { Geo, Biz, Transit, Collections, Direct }
+
+@immutable
+class SearchOptions {
+  final List<SearchType> searchTypes;
+
+  SearchOptions({this.searchTypes = const []});
+
+  Map toMap() => {
+        "searchTypes": searchTypes.map<String>((SearchType type) {
+          switch (type) {
+            case SearchType.Geo:
+              return "geo";
+            case SearchType.Biz:
+              return "biz";
+            case SearchType.Transit:
+              return "transit";
+            case SearchType.Collections:
+              return "collections";
+            case SearchType.Direct:
+              return "direct";
+          }
+        }).toList(growable: false),
+      };
+
+  @override
+  String toString() => 'SearchOptions{searchTypes: $searchTypes}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchOptions &&
+          runtimeType == other.runtimeType &&
+          searchTypes == other.searchTypes;
+
+  @override
+  int get hashCode => searchTypes.hashCode;
+}
+
+class SubmitWithPointParameters {
+  final Point point;
+  final double zoom;
+  final SearchOptions searchOptions;
+
+  SubmitWithPointParameters({
+    @required this.point,
+    this.zoom,
+    this.searchOptions,
+  });
+
+  Map toMap() => {
+        "point": point.toMap(),
+        "zoom": zoom,
+        "searchOptions": searchOptions?.toMap(),
+      };
+
+  @override
+  String toString() =>
+      'SubmitWithPointParameters{point: $point, zoom: $zoom, searchOptions: $searchOptions}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SubmitWithPointParameters &&
+          runtimeType == other.runtimeType &&
+          point == other.point &&
+          zoom == other.zoom &&
+          searchOptions == other.searchOptions;
+
+  @override
+  int get hashCode => point.hashCode ^ zoom.hashCode ^ searchOptions.hashCode;
+}
+
+@immutable
+class SearchResultItem {
+  final String name;
+  final String description;
+
+  SearchResultItem({@required this.name, this.description});
+
+  factory SearchResultItem.fromMap(Map map) => SearchResultItem(
+        name: map['name'] as String,
+        description: map['description'] as String,
+      );
+
+  @override
+  String toString() =>
+      'SearchResultItem{name: $name, description: $description}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchResultItem &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          description == other.description;
+
+  @override
+  int get hashCode => name.hashCode ^ description.hashCode;
+}
+
+@immutable
+class SearchResult {
+  final List<SearchResultItem> items;
+
+  SearchResult({@required this.items});
+
+  factory SearchResult.fromString(String jsonString) =>
+      SearchResult.fromMap(json.decode(jsonString));
+
+  factory SearchResult.fromMap(Map map) {
+    List<SearchResultItem> items = [];
+
+    if (map.containsKey('items')) {
+      var jsonItems = map['items'];
+
+      if (jsonItems is Iterable) {
+        for (Map item in jsonItems) {
+          items.add(SearchResultItem.fromMap(item));
+        }
+      }
+    }
+
+    return SearchResult(items: items);
+  }
+
+  @override
+  String toString() => 'SearchResult{items: $items}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchResult &&
+          runtimeType == other.runtimeType &&
+          items == other.items;
+
+  @override
+  int get hashCode => items.hashCode;
 }
