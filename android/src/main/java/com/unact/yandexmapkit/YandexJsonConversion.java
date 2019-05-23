@@ -6,6 +6,7 @@ import com.yandex.mapkit.Animation;
 import com.yandex.mapkit.GeoObject;
 import com.yandex.mapkit.GeoObjectCollection;
 import com.yandex.mapkit.atom.Link;
+import com.yandex.mapkit.geometry.BoundingBox;
 import com.yandex.mapkit.geometry.LinearRing;
 import com.yandex.mapkit.geometry.Point;
 import com.yandex.mapkit.geometry.Polygon;
@@ -41,6 +42,23 @@ class YandexJsonConversion {
 
         Point toPoint() {
             return new Point(latitude, longitude);
+        }
+    }
+
+    static class JsonBoundingBox {
+        JsonPoint northEast;
+        JsonPoint southWest;
+
+        JsonBoundingBox(BoundingBox boundingBox) {
+            this.northEast = new JsonPoint(boundingBox.getNorthEast());
+            this.southWest = new JsonPoint(boundingBox.getSouthWest());
+        }
+
+        BoundingBox toBoundingBox() {
+            return new BoundingBox(
+                    southWest.toPoint(),
+                    northEast.toPoint()
+            );
         }
     }
 

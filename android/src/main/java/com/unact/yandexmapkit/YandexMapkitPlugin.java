@@ -3,6 +3,7 @@ package com.unact.yandexmapkit;
 import android.app.Activity;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -13,6 +14,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar;
 import com.google.gson.Gson;
 import com.unact.yandexmapkit.YandexJsonConversion.JsonSearchResponse;
 import com.yandex.mapkit.MapKitFactory;
+import com.yandex.mapkit.geometry.BoundingBox;
 import com.yandex.mapkit.geometry.Point;
 import com.yandex.mapkit.search.Response;
 import com.yandex.mapkit.search.SearchFactory;
@@ -21,6 +23,7 @@ import com.yandex.mapkit.search.SearchManagerType;
 import com.yandex.mapkit.search.SearchOptions;
 import com.yandex.mapkit.search.SearchType;
 import com.yandex.mapkit.search.Session;
+import com.yandex.mapkit.search.SuggestItem;
 import com.yandex.runtime.Error;
 
 import java.util.HashMap;
@@ -91,7 +94,7 @@ public class YandexMapkitPlugin implements MethodCallHandler {
         }
     }
 
-    private class DisposableSearchManager implements MethodCallHandler {
+    private class DisposableSearchManager implements MethodCallHandler, SearchManager.SuggestListener {
         private UUID uuid;
         private SearchManager searchManager;
         private MethodChannel methodChannel;
@@ -132,7 +135,7 @@ public class YandexMapkitPlugin implements MethodCallHandler {
         String submitWithPoint(MethodCall call) throws Exception {
             String sessionId = Integer.toString(sessionCounter);
             Session session = searchManager.submit(
-                    point(call),
+                    point(call, null),
                     zoom(call),
                     options(call),
                     new SessionResultListener(sessionId)
@@ -144,14 +147,40 @@ public class YandexMapkitPlugin implements MethodCallHandler {
             return sessionId;
         }
 
-        private Point point(MethodCall call) throws Exception {
-            if (!call.hasArgument("latitude") || !call.hasArgument("longitude")) {
+        void suggestWithText(MethodCall call) throws Exception {
+            String suggestText = call.argument("text");
+
+            searchManager.suggest(
+                    suggestText == null ? "" : suggestText,
+                    boundingBox(call),
+                    options(call),
+                    this
+            );
+        }
+
+        BoundingBox boundingBox(MethodCall call) throws Exception {
+            Point northEast = point(call, "1");
+            Point southWest = point(call, "2");
+
+            return new BoundingBox(northEast, southWest);
+        }
+
+        private Point point(MethodCall call, @Nullable String prefix) throws Exception {
+            String latitudeKey = "latitude";
+            String longitudeKey = "longitude";
+
+            if (prefix != null) {
+                latitudeKey += prefix;
+                longitudeKey += prefix;
+            }
+
+            if (!call.hasArgument(latitudeKey) || !call.hasArgument(longitudeKey)) {
                 throw new Exception("Invalid parameters");
             }
 
             return new Point(
-                    (double) call.argument("latitude"),
-                    (double) call.argument("longitude")
+                    (double) call.argument(latitudeKey),
+                    (double) call.argument(longitudeKey)
             );
         }
 
@@ -210,6 +239,22 @@ public class YandexMapkitPlugin implements MethodCallHandler {
                         result.error("", null, null);
                     }
                 }
+                case "suggestWithText": {
+                    try {
+                        suggestWithText(call);
+                        result.success(null);
+                    } catch (Exception ignored) {
+                        result.error("", null, null);
+                    }
+                }
+                case "cancelSuggest": {
+                    try {
+                        searchManager.cancelSuggest();
+                        result.success(null);
+                    } catch (Exception ignored) {
+                        result.error("", null, null);
+                    }
+                }
                 break;
                 case "cancel": {
                     //noinspection SuspiciousMethodCalls
@@ -220,12 +265,22 @@ public class YandexMapkitPlugin implements MethodCallHandler {
                     }
 
                     result.success(null);
-                break;
+                    break;
                 }
                 default:
                     result.notImplemented();
                     break;
             }
+        }
+
+        @Override
+        public void onSuggestResponse(@NonNull List<SuggestItem> list) {
+
+        }
+
+        @Override
+        public void onSuggestError(@NonNull Error error) {
+
         }
 
         private class SessionResultListener implements Session.SearchListener {
