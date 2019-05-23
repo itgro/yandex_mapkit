@@ -117,86 +117,6 @@ public class JsonCameraMoveParameters: Codable {
     }
 }
 
-public class JsonSearchOptions: Codable {
-    var searchTypes: [String]
-
-    public init(searchTypes: [String]?) {
-        self.searchTypes = searchTypes!
-    }
-
-    public init(searchTypes: YMKSearchType?) {
-        self.searchTypes = [String]()
-
-        if searchTypes!.contains(YMKSearchType.geo) {
-            self.searchTypes.append("geo")
-        }
-        if searchTypes!.contains(YMKSearchType.biz) {
-            self.searchTypes.append("biz")
-        }
-        if searchTypes!.contains(YMKSearchType.transit) {
-            self.searchTypes.append("transit")
-        }
-        if searchTypes!.contains(YMKSearchType.collections) {
-            self.searchTypes.append("collections")
-        }
-        if searchTypes!.contains(YMKSearchType.direct) {
-            self.searchTypes.append("direct")
-        }
-    }
-
-    public func toSearchOptions() -> YMKSearchOptions {
-        let options = YMKSearchOptions()
-
-        var searchType = YMKSearchType();
-
-        for stringValue in searchTypes {
-            switch (stringValue.lowercased()) {
-            case "geo":
-                searchType.insert(YMKSearchType.geo)
-                break;
-            case "biz":
-                searchType.insert(YMKSearchType.biz)
-                break;
-            case "transit":
-                searchType.insert(YMKSearchType.transit)
-                break;
-            case "collections":
-                searchType.insert(YMKSearchType.collections)
-                break;
-            case "direct":
-                searchType.insert(YMKSearchType.direct)
-                break;
-            default:
-                break;
-            }
-        }
-
-        options.searchTypes = searchType;
-
-        return options;
-    }
-}
-
-public class JsonSubmitWithPointParameters: Codable {
-    let point: JsonPoint
-    let zoom: Float?
-    let searchOptions: JsonSearchOptions?
-
-    public init(point: JsonPoint, zoom: Float?, searchOptions: JsonSearchOptions?) {
-        self.point = point
-        self.zoom = zoom
-        self.searchOptions = searchOptions
-    }
-
-    public func getSearchOptions() -> YMKSearchOptions {
-        if searchOptions != nil {
-            return searchOptions!.toSearchOptions()
-        }
-
-        return YMKSearchOptions()
-    }
-}
-
 public class JsonAddressComponent: Codable {
     let name: String
     let kinds: [String]
@@ -242,10 +162,10 @@ public class JsonAddressComponent: Codable {
                 kinds.append("station")
                 break;
             case YMKSearchComponentKind.metroStation.rawValue:
-                kinds.append("metroStation")
+                kinds.append("metro_station")
                 break;
             case YMKSearchComponentKind.railwayStation.rawValue:
-                kinds.append("railwayStation")
+                kinds.append("railway_station")
                 break;
             case YMKSearchComponentKind.vegetation.rawValue:
                 kinds.append("vegetation")
@@ -292,26 +212,70 @@ public class JsonAddress: Codable {
     }
 }
 
+public class JsonToponymData: Codable {
+    let id: String
+    let precision: String
+    let formerName: String?
+    let balloonPoint: JsonPoint
+    let address: JsonAddress
+
+    public init(metadata: YMKSearchToponymObjectMetadata) {
+        self.id = metadata.id!
+        self.formerName = metadata.formerName
+        self.balloonPoint = JsonPoint(point: metadata.balloonPoint)
+
+        self.address = JsonAddress(address: metadata.address)
+
+        if metadata.precision != nil {
+            switch (metadata.precision!.uintValue) {
+            case YMKSearchPrecision.exact.rawValue:
+                self.precision = "exact"
+                break;
+            case YMKSearchPrecision.number.rawValue:
+                self.precision = "number"
+                break;
+            case YMKSearchPrecision.range.rawValue:
+                self.precision = "range"
+                break;
+            case YMKSearchPrecision.nearby.rawValue:
+                self.precision = "nearby"
+                break;
+            default:
+                self.precision = "unknown"
+                break;
+            }
+        } else {
+            self.precision = "unknown"
+        }
+    }
+}
+
 public class JsonSearchResultItem: Codable {
     let name: String?
     let description: String?
-    let address: JsonAddress?
+    let toponym: JsonToponymData?
 
     public init(obj: YMKGeoObject) {
         self.name = obj.name
         self.description = obj.descriptionText
 
-        let toponym: YMKSearchToponymObjectMetadata =
+        let toponym: YMKSearchToponymObjectMetadata? =
                 obj.metadataContainer.getItemOf(YMKSearchToponymObjectMetadata.self) as! YMKSearchToponymObjectMetadata
 
-        self.address = JsonAddress(address: toponym.address)
+        if toponym != nil {
+            self.toponym = JsonToponymData(metadata: toponym!)
+        } else {
+            self.toponym = nil
+        }
     }
 }
 
 public class JsonSearchResponse: Codable {
+    let sessionId: String
+    let isSuccess: Bool
     let items: [JsonSearchResultItem]
 
-    public init(response: YMKSearchResponse) {
+    public init(sessionId: String, response: YMKSearchResponse) {
         var items = [JsonSearchResultItem]()
 
         for item in response.collection.children {
@@ -319,5 +283,13 @@ public class JsonSearchResponse: Codable {
         }
 
         self.items = items
+        self.sessionId = sessionId
+        self.isSuccess = true
+    }
+
+    public init(sessionId: String, error: Error) {
+        self.items = [JsonSearchResultItem]()
+        self.sessionId = sessionId
+        self.isSuccess = false
     }
 }

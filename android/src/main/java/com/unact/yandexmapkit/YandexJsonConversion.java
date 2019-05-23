@@ -5,14 +5,20 @@ import androidx.annotation.Nullable;
 import com.yandex.mapkit.Animation;
 import com.yandex.mapkit.GeoObject;
 import com.yandex.mapkit.GeoObjectCollection;
+import com.yandex.mapkit.atom.Link;
 import com.yandex.mapkit.geometry.LinearRing;
 import com.yandex.mapkit.geometry.Point;
 import com.yandex.mapkit.geometry.Polygon;
 import com.yandex.mapkit.map.CameraPosition;
+import com.yandex.mapkit.search.Address;
+import com.yandex.mapkit.search.BusinessObjectMetadata;
 import com.yandex.mapkit.search.Response;
 import com.yandex.mapkit.search.Search;
 import com.yandex.mapkit.search.SearchOptions;
 import com.yandex.mapkit.search.SearchType;
+import com.yandex.mapkit.search.ToponymObjectMetadata;
+import com.yandex.runtime.Error;
+import com.yandex.runtime.any.Collection;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -138,85 +144,122 @@ class YandexJsonConversion {
         }
     }
 
-    static class JsonSearchOptions {
-        LinkedList<String> searchTypes;
+    static class JsonAddressComponent {
+        String name;
+        List<String> kinds = new LinkedList<>();
 
-        JsonSearchOptions(LinkedList<String> searchTypes) {
-            this.searchTypes = searchTypes;
-        }
+        JsonAddressComponent(Address.Component component) {
+            name = component.getName();
 
-        JsonSearchOptions(int searchTypes) {
-            this.searchTypes = new LinkedList<>();
-
-            if ((searchTypes & SearchType.GEO.value) != 0) {
-                this.searchTypes.add("geo");
-            }
-
-            if ((searchTypes & SearchType.BIZ.value) != 0) {
-                this.searchTypes.add("biz");
-            }
-
-            if ((searchTypes & SearchType.TRANSIT.value) != 0) {
-                this.searchTypes.add("transit");
-            }
-
-            if ((searchTypes & SearchType.COLLECTIONS.value) != 0) {
-                this.searchTypes.add("collections");
-            }
-
-            if ((searchTypes & SearchType.DIRECT.value) != 0) {
-                this.searchTypes.add("direct");
-            }
-        }
-
-        SearchOptions toSearchOptions() {
-            SearchOptions options = new SearchOptions();
-
-            int searchTypes = 0;
-
-            for (String value : this.searchTypes) {
-                switch (value.toLowerCase()) {
-                    case "geo":
-                        searchTypes |= SearchType.GEO.value;
+            for (Address.Component.Kind kind : component.getKinds()) {
+                switch (kind) {
+                    case UNKNOWN:
+                        kinds.add("unknown");
                         break;
-                    case "biz":
-                        searchTypes |= SearchType.BIZ.value;
+                    case COUNTRY:
+                        kinds.add("country");
                         break;
-                    case "transit":
-                        searchTypes |= SearchType.TRANSIT.value;
+                    case REGION:
+                        kinds.add("region");
                         break;
-                    case "collections":
-                        searchTypes |= SearchType.COLLECTIONS.value;
+                    case PROVINCE:
+                        kinds.add("province");
                         break;
-                    case "direct":
-                        searchTypes |= SearchType.DIRECT.value;
+                    case AREA:
+                        kinds.add("area");
+                        break;
+                    case LOCALITY:
+                        kinds.add("locality");
+                        break;
+                    case DISTRICT:
+                        kinds.add("district");
+                        break;
+                    case STREET:
+                        kinds.add("street");
+                        break;
+                    case HOUSE:
+                        kinds.add("house");
+                        break;
+                    case ENTRANCE:
+                        kinds.add("entrance");
+                        break;
+                    case ROUTE:
+                        kinds.add("route");
+                        break;
+                    case STATION:
+                        kinds.add("station");
+                        break;
+                    case METRO_STATION:
+                        kinds.add("metro_station");
+                        break;
+                    case RAILWAY_STATION:
+                        kinds.add("railway_station");
+                        break;
+                    case VEGETATION:
+                        kinds.add("vegetation");
+                        break;
+                    case HYDRO:
+                        kinds.add("hydro");
+                        break;
+                    case AIRPORT:
+                        kinds.add("airport");
+                        break;
+                    case OTHER:
+                        kinds.add("other");
                         break;
                 }
             }
-
-            options.setSearchTypes(searchTypes);
-
-            return options;
         }
     }
 
-    static class JsonSubmitWithPointParameters {
-        JsonPoint point;
-        float zoom;
-        JsonSearchOptions searchOptions;
+    static class JsonAddress {
+        String formattedAddress;
+        String additionalInfo;
+        String postalCode;
+        String countryCode;
+        List<JsonAddressComponent> components = new LinkedList<>();
 
-        public JsonSubmitWithPointParameters(JsonPoint point, @Nullable float zoom, @Nullable JsonSearchOptions searchOptions) {
-            this.point = point;
-            this.zoom = zoom;
-            this.searchOptions = searchOptions;
-        }
+        JsonAddress(Address address) {
+            formattedAddress = address.getFormattedAddress();
+            additionalInfo = address.getAdditionalInfo();
+            postalCode = address.getPostalCode();
+            countryCode = address.getCountryCode();
 
-        public SearchOptions getSearchOptions() {
-            if (searchOptions != null) {
-                return searchOptions.toSearchOptions();
+            for (Address.Component component : address.getComponents()) {
+                this.components.add(new JsonAddressComponent(component));
             }
+        }
+    }
 
-            return new SearchOptions();
+    static class JsonToponymData {
+        String id;
+        String precision;
+        String formerName;
+        JsonPoint balloonPoint;
+        JsonAddress address;
+
+        JsonToponymData(ToponymObjectMetadata metadata) {
+            this.id = metadata.getId();
+            this.formerName = metadata.getFormerName();
+            this.balloonPoint = new JsonPoint(metadata.getBalloonPoint());
+            this.address = new JsonAddress(metadata.getAddress());
+
+            if (metadata.getPrecision() != null) {
+                switch (metadata.getPrecision()) {
+                    case EXACT:
+                        precision = "exact";
+                        break;
+                    case NUMBER:
+                        precision = "number";
+                        break;
+                    case RANGE:
+                        precision = "range";
+                        break;
+                    case NEARBY:
+                        precision = "nearby";
+                        break;
+                }
+            }
         }
     }
 
@@ -224,23 +267,39 @@ class YandexJsonConversion {
         String name;
         String description;
 
-        public JsonSearchResultItem(GeoObject obj) {
+        JsonToponymData toponym;
+
+        JsonSearchResultItem(GeoObject obj) {
             this.name = obj.getName();
             this.description = obj.getDescriptionText();
+
+            Collection metadata = obj.getMetadataContainer();
+            ToponymObjectMetadata toponym = metadata.getItem(ToponymObjectMetadata.class);
+
+            if (toponym != null) {
+                this.toponym = new JsonToponymData(toponym);
+            }
         }
     }
 
     static class JsonSearchResponse {
-        LinkedList<JsonSearchResultItem> items;
+        String sessionId;
+        boolean isSuccess;
+        LinkedList<JsonSearchResultItem> items = new LinkedList<>();
 
-        public JsonSearchResponse(Response response) {
-            items = new LinkedList<>();
-
+        JsonSearchResponse(String sessionId, Response response) {
+            this.sessionId = sessionId;
+            this.isSuccess = true;
             for (GeoObjectCollection.Item item : response.getCollection().getChildren()) {
                 if (item.getObj() != null) {
                     items.add(new JsonSearchResultItem(item.getObj()));
                 }
             }
+        }
+
+        JsonSearchResponse(String sessionId, Error error) {
+            this.sessionId = sessionId;
+            this.isSuccess = false;
         }
     }
 }

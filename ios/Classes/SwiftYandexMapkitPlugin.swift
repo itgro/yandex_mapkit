@@ -23,8 +23,10 @@ extension UIColor {
 
 public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin {
     static var channel: FlutterMethodChannel!
+    static var registrar: FlutterPluginRegistrar!
     static var controller: YandexMapController!
-    static var searchController: SearchController!
+
+    var searchManagers: [String: DisposableSearchManager] = [:]
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         channel = FlutterMethodChannel(name: "yandex_mapkit", binaryMessenger: registrar.messenger())
@@ -34,8 +36,7 @@ public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin {
                 YandexMapFactory(registrar: registrar),
                 withId: "yandex_mapkit/yandex_map"
         )
-
-        searchController = SearchController(registrar: registrar)
+        self.registrar = registrar
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -43,8 +44,19 @@ public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin {
         case "setApiKey":
             setApiKey(call)
             result(nil)
-        case "search#withPoint":
-            result(SwiftYandexMapkitPlugin.searchController.searchWithPoint(call))
+            break;
+        case "createSearchManager":
+            let manager = DisposableSearchManager(call);
+
+            searchManagers[manager.uuid.uuidString] = manager
+
+            result(manager.uuid.uuidString)
+            break;
+        case "disposeSearchManager":
+            searchManagers.removeValue(forKey: call.arguments as! String)
+
+            result(nil)
+            break;
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -54,103 +66,167 @@ public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin {
         YMKMapKit.setApiKey(call.arguments as! String?)
     }
 
-    internal class SearchController {
-        private let registrar: FlutterPluginRegistrar
-        private let searchManager: YMKSearchManager
+    internal class DisposableSearchManager {
+        let uuid: UUID
+        let searchManager: YMKSearchManager
+        let methodChannel: FlutterMethodChannel
 
-        public required init(registrar: FlutterPluginRegistrar) {
-            self.registrar = registrar
-            self.searchManager = YMKSearch.sharedInstance().createSearchManager(with: .combined)
-        }
+        var sessions: [String: YMKSearchSession] = [:]
+        var sessionCounter: Int = 0
 
-        public func searchWithPoint(_ call: FlutterMethodCall) -> String {
-            let parameters: JsonSubmitWithPointParameters = try! call.fromJson(JsonSubmitWithPointParameters.self)
+        init(_ call: FlutterMethodCall) {
+            let arguments: [String: String] = call.arguments as! [String: String]
 
-            let session = SearchSessionController(
-                    registrar: registrar,
-                    searchManager: searchManager
-            )
+            self.uuid = UUID()
 
-            session.submit(
-                    with: parameters.point.toPoint(),
-                    zoom: NSNumber(value: parameters.zoom!),
-                    searchOptions: parameters.getSearchOptions()
-            )
+            var type: YMKSearchSearchManagerType = .default
 
-            return session.sessionId.uuidString
-        }
+            let stringType: String? = arguments["type"]
 
-        internal class SearchSessionController {
-            let sessionId: UUID
-            let registrar: FlutterPluginRegistrar
-            let searchManager: YMKSearchManager
-            let sessionChannel: FlutterMethodChannel
-            var searchSession: YMKSearchSession?
-
-            init(registrar: FlutterPluginRegistrar, searchManager: YMKSearchManager) {
-                self.registrar = registrar
-                self.searchManager = searchManager
-                self.sessionId = UUID()
-                self.sessionChannel = FlutterMethodChannel(
-                        name: "yandex_mapkit_search_\(sessionId)",
-                        binaryMessenger: registrar.messenger()
-                )
-                self.sessionChannel.setMethodCallHandler(self.handle)
-            }
-
-            public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-                switch call.method {
-                case "cancel":
-                    self.cancel()
-                    result(nil)
-                case "dispose":
-                    self.dispose()
-                    result(nil)
+            if (stringType != nil) {
+                switch stringType {
+                case "combined":
+                    type = .combined
+                    break;
+                case "online":
+                    type = .online
+                    break;
+                case "offline":
+                    type = .offline
+                    break;
                 default:
-                    result(FlutterMethodNotImplemented)
+                    type = .default
+                    break;
                 }
             }
 
-            public func submit(with: YMKPoint, zoom: NSNumber?, searchOptions: YMKSearchOptions) -> Void {
-                searchSession = searchManager.submit(
-                        with: with,
-                        zoom: zoom,
-                        searchOptions: searchOptions,
-                        responseHandler: self.responseHandler
-                )
+            searchManager = YMKSearch.sharedInstance().createSearchManager(with: type)
+
+            methodChannel = FlutterMethodChannel(
+                    name: "yandex_mapkit/search_manager_\(self.uuid.uuidString)",
+                    binaryMessenger: registrar.messenger()
+            )
+
+            methodChannel.setMethodCallHandler(self.handle)
+        }
+
+        public func submitWithPoint(_ call: FlutterMethodCall) throws -> String {
+            let arguments: [String: Any] = call.arguments as! [String: Any]
+
+            let latitude: Double = arguments["latitude"] as! Double
+            let longitude: Double = arguments["longitude"] as! Double
+
+            if latitude == 0 || longitude == 0 {
+                throw NSError()
             }
 
-            public func cancel() {
-                searchSession?.cancel()
+            var zoom: Int = arguments["zoom"] as! Int
+
+            if zoom == 0 {
+                zoom = 17
             }
 
-            public func dispose() {
-                // TODO ???
-            }
+            let point = YMKPoint(latitude: latitude, longitude: longitude)
 
-            private func reportError(error: Error) -> Void {
-                sessionChannel.invokeMethod(
-                        "failure",
-                        arguments: [
-                            "uuid": sessionId.uuidString,
-                            "description": error.localizedDescription
-                        ]
-                )
-            }
+            sessionCounter += 1
+            let sessionId: String = String(sessionCounter)
 
-            private func responseHandler(response: YMKSearchResponse?, error: Error?) -> Void {
-                if error != nil {
-                    self.reportError(error: error!)
+            let container: SessionContainer = SessionContainer(
+                    sessionId: sessionId,
+                    channel: methodChannel
+            )
+
+            let session: YMKSearchSession = searchManager.submit(
+                    with: point,
+                    zoom: NSNumber(value: zoom),
+                    searchOptions: options(call),
+                    responseHandler: container.responseHandler
+            )
+
+            sessions[sessionId] = session
+
+            return String(sessionCounter)
+        }
+
+        private func options(_ call: FlutterMethodCall) -> YMKSearchOptions {
+            let arguments: [String: Any] = call.arguments as! [String: Any]
+            let types: [String] = arguments["types"] as! [String]
+            let options: YMKSearchOptions = YMKSearchOptions()
+
+            var searchTypes = YMKSearchType()
+
+            for type in types {
+                switch type {
+                case "geo":
+                    searchTypes.insert(YMKSearchType.geo)
+                    break;
+                case "biz":
+                    searchTypes.insert(YMKSearchType.biz)
+                    break;
+                case "transit":
+                    searchTypes.insert(YMKSearchType.transit)
+                    break;
+                case "collections":
+                    searchTypes.insert(YMKSearchType.collections)
+                    break;
+                case "direct":
+                    searchTypes.insert(YMKSearchType.direct)
+                    break;
+                default:
+                    break;
                 }
+            }
 
+            options.searchTypes = searchTypes
+
+            return options
+        }
+
+        public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+            switch call.method {
+            case "submitWithPoint":
                 do {
-                    let response = JsonSearchResponse(response: response!)
-                    let data = try String(data: JSONEncoder().encode(response), encoding: .utf8)
-                    sessionChannel.invokeMethod("success", arguments: data)
+                    try result(submitWithPoint(call))
                 } catch {
-                    self.reportError(error: error)
+                    result(FlutterError())
                 }
+                break;
+            case "cancel":
+                let session: YMKSearchSession? = sessions[call.arguments as! String]
+
+                if session != nil {
+                    session!.cancel()
+                }
+                result(nil)
+                break;
+            default:
+                result(FlutterMethodNotImplemented)
             }
+        }
+    }
+
+    internal class SessionContainer {
+        let sessionId: String
+        let sessionMethodChannel: FlutterMethodChannel
+
+        init(sessionId: String, channel: FlutterMethodChannel) {
+            self.sessionId = sessionId
+            self.sessionMethodChannel = channel
+        }
+
+        public func responseHandler(response: YMKSearchResponse?, error: Error?) -> Void {
+            if (error != nil) {
+                sendToDart(response: JsonSearchResponse(sessionId: sessionId, error: error!))
+            } else {
+                sendToDart(response: JsonSearchResponse(sessionId: sessionId, response: response!))
+            }
+        }
+
+        private func sendToDart(response: JsonSearchResponse) {
+            let data = try! JSONEncoder().encode(response)
+            let arguments = String(data: data, encoding: .utf8)
+
+            sessionMethodChannel.invokeMethod("searchResponse", arguments: arguments)
         }
     }
 }

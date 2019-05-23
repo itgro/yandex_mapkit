@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:yandex_mapkit/yandex_mapkit.dart';
 
@@ -14,13 +15,28 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   YandexMapController _yandexMapController;
   YandexSearchSession _session;
+  YandexSearch _searchManager;
+  Completer<YandexSearch> _searchManagerCompleter = Completer();
 
   String currentName;
   Point currentPoint;
 
-  dispose() {
-    _session.dispose();
+  initState() {
+    YandexSearch.createSearchManager(type: YandexSearchManagerType.Combined)
+        .then((YandexSearch manager) {
+      if (mounted) {
+        _searchManager = manager;
+        _searchManagerCompleter.complete(_searchManager);
+      } else {
+        manager.dispose();
+      }
+    });
 
+    super.initState();
+  }
+
+  dispose() {
+    _searchManager?.dispose();
     super.dispose();
   }
 
@@ -67,27 +83,25 @@ class _MyAppState extends State<MyApp> {
                     if (event.finished) {
                       _session?.cancel();
 
-                      _session = await YandexSearchManager.sharedInstance
-                          .submitWithPoint(
-                        point: event.position.target,
-                        zoom: event.position.zoom,
-                        searchOptions: SearchOptions(searchTypes: [
-                          SearchType.Geo,
-                        ]),
+                      YandexSearch manager = await _searchManagerCompleter.future;
+
+                      _session = await manager.submitWithPoint(
+                          point: event.position.target,
+                          zoom: event.position.zoom.round(),
                         onSuccess: (SearchResult result) {
                           if (result.items.isNotEmpty) {
-                            if (result.items.first.address.components.last.kinds.contains('house')) {
+                            if (result.items.first.kind == Kind.House) {
                               print("all right! its address");
                             } else {
                               print("fuck! it's other");
                             }
 
                             setState(
-                                () => currentName = result.items.first.name);
+                                    () => currentName = result.items.first.name);
                           }
                         },
-                        onError: (String error) {
-                          print("ERROR!! $error}");
+                        onError: () {
+                          print("ERROR!!}");
                         },
                       );
                     }

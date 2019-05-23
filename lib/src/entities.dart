@@ -4,6 +4,84 @@ import 'package:flutter/material.dart';
 
 double _double(source) => double.tryParse(source.toString()) ?? .0;
 
+enum Kind {
+  /// станция
+  Station,
+
+  /// станция
+  MetroStation,
+
+  /// станция
+  RailwayStation,
+
+  /// вход
+  Entrance,
+
+  /// отдельный дом
+  House,
+
+  /// улица
+  Street,
+
+  /// станция метро
+  Metro,
+
+  /// район города
+  District,
+
+  /// населённый пункт: город / поселок / деревня / село и т. п.
+  Locality,
+
+  /// район области
+  Area,
+
+  /// область
+  Province,
+
+  /// страна
+  Country,
+
+  /// регион
+  Region,
+
+  /// река / озеро / ручей / водохранилище и т. п.
+  Hydro,
+
+  /// ж.д. станция
+  Railway,
+
+  /// линия метро / шоссе / ж.д. линия
+  Route,
+
+  /// лес / парк / сад и т. п.
+  Vegetation,
+
+  /// аэропорт
+  Airport,
+  Other,
+  Unknown,
+}
+
+enum Precision {
+  /// Найден дом с указанным номером дома.
+  Exact,
+
+  /// Найден дом с указанным номером, но с другим номером строения или корпуса.
+  Number,
+
+  /// Найден дом с номером, близким к запрошенному.
+  Near,
+
+  /// Найдены приблизительные координаты запрашиваемого дома.
+  Range,
+
+  /// Найдена только улица.
+  Street,
+
+  /// Не найдена улица, но найден, например, посёлок, район и т. п.
+  Other,
+}
+
 @immutable
 class Point {
   final double _latitude;
@@ -132,7 +210,7 @@ enum SearchType { Geo, Biz, Transit, Collections, Direct }
 class SearchOptions {
   final List<SearchType> searchTypes;
 
-  SearchOptions({this.searchTypes = const []});
+  const SearchOptions({this.searchTypes = const []});
 
   Map toMap() => {
         "searchTypes": searchTypes.map<String>((SearchType type) {
@@ -200,13 +278,13 @@ class SubmitWithPointParameters {
 }
 
 @immutable
-class SearchResultItemAddressComponent {
+class AddressComponent {
   final String name;
-  final List<String> kinds;
+  final List<Kind> kinds;
 
-  SearchResultItemAddressComponent({
-    this.name,
-    this.kinds,
+  AddressComponent({
+    @required this.name,
+    @required this.kinds,
   });
 
   @override
@@ -216,7 +294,7 @@ class SearchResultItemAddressComponent {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is SearchResultItemAddressComponent &&
+      other is AddressComponent &&
           runtimeType == other.runtimeType &&
           name == other.name &&
           kinds == other.kinds;
@@ -224,20 +302,81 @@ class SearchResultItemAddressComponent {
   @override
   int get hashCode => name.hashCode ^ kinds.hashCode;
 
-  factory SearchResultItemAddressComponent.fromMap(Map map) {
-    List<String> kinds = [];
+  factory AddressComponent.fromMap(Map map) {
+    List<Kind> kinds = [];
 
     if (map.containsKey('kinds')) {
       var jsonItems = map['kinds'];
 
       if (jsonItems is Iterable) {
         for (String kind in jsonItems) {
-          kinds.add(kind);
+          switch (kind) {
+            case 'station':
+              kinds.add(Kind.Station);
+              break;
+            case 'metro_station':
+              kinds.add(Kind.MetroStation);
+              break;
+            case 'railway_station':
+              kinds.add(Kind.RailwayStation);
+              break;
+            case 'entrance':
+              kinds.add(Kind.Entrance);
+              break;
+            case 'house':
+              kinds.add(Kind.House);
+              break;
+            case 'street':
+              kinds.add(Kind.Street);
+              break;
+            case 'metro':
+              kinds.add(Kind.Station);
+              break;
+            case 'district':
+              kinds.add(Kind.District);
+              break;
+            case 'locality':
+              kinds.add(Kind.Locality);
+              break;
+            case 'area':
+              kinds.add(Kind.Area);
+              break;
+            case 'province':
+              kinds.add(Kind.Province);
+              break;
+            case 'country':
+              kinds.add(Kind.Country);
+              break;
+            case 'region':
+              kinds.add(Kind.Region);
+              break;
+            case 'hydro':
+              kinds.add(Kind.Hydro);
+              break;
+            case 'railway':
+              kinds.add(Kind.Railway);
+              break;
+            case 'route':
+              kinds.add(Kind.Route);
+              break;
+            case 'vegetation':
+              kinds.add(Kind.Vegetation);
+              break;
+            case 'airport':
+              kinds.add(Kind.Airport);
+              break;
+            case 'other':
+              kinds.add(Kind.Other);
+              break;
+            default:
+              kinds.add(Kind.Unknown);
+              break;
+          }
         }
       }
     }
 
-    return SearchResultItemAddressComponent(
+    return AddressComponent(
       name: map['name'] as String,
       kinds: kinds,
     );
@@ -245,19 +384,19 @@ class SearchResultItemAddressComponent {
 }
 
 @immutable
-class SearchResultItemAddress {
+class Address {
   final String formattedAddress;
   final String additionalInfo;
   final String countryCode;
   final String postalCode;
-  final List<SearchResultItemAddressComponent> components;
+  final List<AddressComponent> components;
 
-  SearchResultItemAddress({
-    this.formattedAddress,
-    this.additionalInfo,
-    this.countryCode,
-    this.postalCode,
-    this.components,
+  Address({
+    @required this.formattedAddress,
+    @required this.additionalInfo,
+    @required this.countryCode,
+    @required this.postalCode,
+    @required this.components,
   });
 
   @override
@@ -267,7 +406,7 @@ class SearchResultItemAddress {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is SearchResultItemAddress &&
+      other is Address &&
           runtimeType == other.runtimeType &&
           formattedAddress == other.formattedAddress &&
           additionalInfo == other.additionalInfo &&
@@ -283,35 +422,121 @@ class SearchResultItemAddress {
       postalCode.hashCode ^
       components.hashCode;
 
-  factory SearchResultItemAddress.fromMap(Map map) => SearchResultItemAddress(
+  factory Address.fromMap(Map map) => Address(
         formattedAddress: map['formattedAddress'] as String,
         additionalInfo: map['additionalInfo'] as String,
         countryCode: map['countryCode'] as String,
         postalCode: map['postalCode'] as String,
-        components: (map['components'] as List)
-            .map<SearchResultItemAddressComponent>((dynamic value) {
-          return SearchResultItemAddressComponent.fromMap(value);
+        components:
+            (map['components'] as List).map<AddressComponent>((dynamic value) {
+          return AddressComponent.fromMap(value);
         }).toList(),
       );
+}
+
+@immutable
+class ToponymMetadata {
+  final String id;
+  final Precision precision;
+  final String formerName;
+  final Point balloonPoint;
+  final Address address;
+
+  ToponymMetadata({
+    @required this.id,
+    @required this.precision,
+    @required this.formerName,
+    @required this.balloonPoint,
+    @required this.address,
+  });
+
+  factory ToponymMetadata.fromMap(Map map) {
+    Precision precision;
+
+    switch (map['precision']) {
+      case "exact":
+        precision = Precision.Exact;
+        break;
+      case "number":
+        precision = Precision.Number;
+        break;
+      case "range":
+        precision = Precision.Range;
+        break;
+      case "nearby":
+        precision = Precision.Near;
+        break;
+    }
+
+    return ToponymMetadata(
+      id: map['id'] as String,
+      formerName: map['formerName'] as String,
+      balloonPoint: Point.fromMap(map["balloonPoint"]),
+      address: Address.fromMap(map['address']),
+      precision: precision,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ToponymMetadata &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          precision == other.precision &&
+          formerName == other.formerName &&
+          balloonPoint == other.balloonPoint &&
+          address == other.address;
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      precision.hashCode ^
+      formerName.hashCode ^
+      balloonPoint.hashCode ^
+      address.hashCode;
 }
 
 @immutable
 class SearchResultItem {
   final String name;
   final String description;
-  final SearchResultItemAddress address;
+  final ToponymMetadata toponym;
 
-  SearchResultItem({@required this.name, this.description, this.address});
+  SearchResultItem({
+    @required this.name,
+    this.description,
+    this.toponym,
+  });
 
-  factory SearchResultItem.fromMap(Map map) => SearchResultItem(
-        name: map['name'] as String,
-        description: map['description'] as String,
-        address: SearchResultItemAddress.fromMap(map['address']),
-      );
+  Kind get kind {
+    if (toponym != null &&
+        toponym.address != null &&
+        toponym.address.components != null &&
+        toponym.address.components.isNotEmpty) {
+      return toponym.address.components.last.kinds.last;
+    }
+
+    return Kind.Unknown;
+  }
+
+  factory SearchResultItem.fromMap(Map map) {
+    ToponymMetadata toponym;
+
+    if (map.containsKey("toponym") && map["toponym"] != null) {
+      toponym = ToponymMetadata.fromMap(map["toponym"]);
+    }
+
+    return SearchResultItem(
+      name: map['name'] as String,
+      description: map['description'] as String,
+      toponym: toponym,
+    );
+  }
 
   @override
   String toString() =>
-      'SearchResultItem{name: $name, description: $description, address: $address}';
+      'SearchResultItem{name: $name, description: $description, toponym: $toponym}';
 
   @override
   bool operator ==(Object other) =>
@@ -320,17 +545,23 @@ class SearchResultItem {
           runtimeType == other.runtimeType &&
           name == other.name &&
           description == other.description &&
-          address == other.address;
+          toponym == other.toponym;
 
   @override
-  int get hashCode => name.hashCode ^ description.hashCode ^ address.hashCode;
+  int get hashCode => name.hashCode ^ description.hashCode ^ toponym.hashCode;
 }
 
 @immutable
 class SearchResult {
+  final String sessionId;
+  final bool isSuccess;
   final List<SearchResultItem> items;
 
-  SearchResult({@required this.items});
+  SearchResult({
+    @required this.sessionId,
+    @required this.isSuccess,
+    this.items = const [],
+  });
 
   factory SearchResult.fromString(String jsonString) =>
       SearchResult.fromMap(json.decode(jsonString));
@@ -348,19 +579,27 @@ class SearchResult {
       }
     }
 
-    return SearchResult(items: items);
+    return SearchResult(
+      isSuccess: map['isSuccess'] as bool,
+      sessionId: map['sessionId'] as String,
+      items: items,
+    );
   }
 
   @override
-  String toString() => 'SearchResult{items: $items}';
+  String toString() {
+    return 'SearchResult{sessionId: $sessionId, isSuccess: $isSuccess, items: $items}';
+  }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SearchResult &&
           runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          isSuccess == other.isSuccess &&
           items == other.items;
 
   @override
-  int get hashCode => items.hashCode;
+  int get hashCode => sessionId.hashCode ^ isSuccess.hashCode ^ items.hashCode;
 }
