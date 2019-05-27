@@ -260,7 +260,7 @@ public class JsonSearchResultItem: Codable {
         self.description = obj.descriptionText
 
         let toponym: YMKSearchToponymObjectMetadata? =
-                obj.metadataContainer.getItemOf(YMKSearchToponymObjectMetadata.self) as! YMKSearchToponymObjectMetadata
+                obj.metadataContainer.getItemOf(YMKSearchToponymObjectMetadata.self) as? YMKSearchToponymObjectMetadata
 
         if toponym != nil {
             self.toponym = JsonToponymData(metadata: toponym!)
