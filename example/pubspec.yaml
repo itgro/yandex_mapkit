@@ -8,7 +8,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^0.1.2
 
 dev_dependencies:
   flutter_test:
@@ -18,7 +17,7 @@ dev_dependencies:
     path: ../
 
 flutter:
-  assets:
-    - lib/assets/user.png
-    - lib/assets/place.png
+#  assets:
+#    - lib/assets/user.png
+#    - lib/assets/place.png
   uses-material-design: true

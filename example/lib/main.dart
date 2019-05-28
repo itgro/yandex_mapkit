@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:yandex_mapkit/yandex_mapkit.dart';
+import 'package:yandex_geometry/yandex_geometry.dart';
 
 void main() async {
   await YandexMapkit.setup('2c701245-ce40-4d13-ae8d-f4b9b51caa9d');
@@ -14,29 +15,15 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   YandexMapController _yandexMapController;
-  YandexSearchSession _session;
-  YandexSearch _searchManager;
-  Completer<YandexSearch> _searchManagerCompleter = Completer();
 
   String currentName;
   Point currentPoint;
 
   initState() {
-    YandexSearch.createSearchManager(type: YandexSearchManagerType.Combined)
-        .then((YandexSearch manager) {
-      if (mounted) {
-        _searchManager = manager;
-        _searchManagerCompleter.complete(_searchManager);
-      } else {
-        manager.dispose();
-      }
-    });
-
     super.initState();
   }
 
   dispose() {
-    _searchManager?.dispose();
     super.dispose();
   }
 
@@ -51,20 +38,21 @@ class _MyAppState extends State<MyApp> {
                 onCreated: (YandexMapController controller) async {
                   _yandexMapController = controller;
 
-                  Point defaultPoint = new Point(56.837626, 60.597405);
+                  Point defaultPoint =
+                      new Point(latitude: 56.837626, longitude: 60.597405);
 
                   List<Point> points = [
-                    new Point(
-                      defaultPoint.latitude + 0.0015,
-                      defaultPoint.longitude - 0.0015,
+                    Point(
+                      latitude: defaultPoint.latitude + 0.0015,
+                      longitude: defaultPoint.longitude - 0.0015,
                     ),
-                    new Point(
-                      defaultPoint.latitude - 0.0015,
-                      defaultPoint.longitude - 0.0015,
+                    Point(
+                      latitude: defaultPoint.latitude - 0.0015,
+                      longitude: defaultPoint.longitude - 0.0015,
                     ),
-                    new Point(
-                      defaultPoint.latitude,
-                      defaultPoint.longitude + 0.0015,
+                    Point(
+                      latitude: defaultPoint.latitude,
+                      longitude: defaultPoint.longitude + 0.0015,
                     ),
                   ];
 
@@ -79,32 +67,6 @@ class _MyAppState extends State<MyApp> {
                   controller.onCameraPositionChanged
                       .listen((CameraPositionEvent event) async {
                     setState(() => currentPoint = event.position.target);
-
-                    if (event.finished) {
-                      _session?.cancel();
-
-                      YandexSearch manager = await _searchManagerCompleter.future;
-
-                      _session = await manager.submitWithPoint(
-                          point: event.position.target,
-                          zoom: event.position.zoom.round(),
-                        onSuccess: (SearchResult result) {
-                          if (result.items.isNotEmpty) {
-                            if (result.items.first.kind == Kind.House) {
-                              print("all right! its address");
-                            } else {
-                              print("fuck! it's other");
-                            }
-
-                            setState(
-                                    () => currentName = result.items.first.name);
-                          }
-                        },
-                        onError: () {
-                          print("ERROR!!}");
-                        },
-                      );
-                    }
                   });
 
                   await controller.move(

@@ -9,7 +9,6 @@ export 'src/events.dart';
 export 'src/placemark.dart';
 export 'src/yandex_map.dart';
 export 'src/yandex_map_controller.dart';
-export 'src/yandex_search.dart';
 
 class YandexMapkit {
   static MethodChannel _channel = const MethodChannel('yandex_mapkit');
