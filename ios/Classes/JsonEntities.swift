@@ -1,5 +1,4 @@
 import YandexMapKit
-import YandexMapKitSearch
 
 public class JsonPoint: Codable {
     let latitude: Double

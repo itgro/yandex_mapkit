@@ -1,7 +1,6 @@
 import Flutter
 import UIKit
 import YandexMapKit
-import YandexMapKitSearch
 
 extension FlutterMethodCall {
     func fromJson<T>(_ type: T.Type) throws -> T where T: Decodable {
