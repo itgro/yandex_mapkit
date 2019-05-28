@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yandex_geometry/yandex_geometry.dart';
 import 'package:yandex_mapkit/yandex_mapkit.dart';
 
 import 'entities.dart';

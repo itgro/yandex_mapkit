@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:yandex_geometry/yandex_geometry.dart';
+
 import '../yandex_mapkit.dart';
 
 class CameraPositionEvent {
