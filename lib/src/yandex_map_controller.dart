@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:yandex_geometry/yandex_geometry.dart';
 import 'package:yandex_mapkit/src/events.dart';
 
-import 'placemark.dart';
 import 'entities.dart';
 
 class YandexMapController {
