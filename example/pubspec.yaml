@@ -12,10 +12,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
   yandex_mapkit:
     path: ../
   yandex_geometry:
-    path: ../../yandex_geometry
+    git:
+      url: https://github.com/itgro/yandex_geometry.git
 
 flutter:
 #  assets:
