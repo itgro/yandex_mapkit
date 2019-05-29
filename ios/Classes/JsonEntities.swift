@@ -1,4 +1,5 @@
 import YandexMapKit
+import YandexMapKitSearch
 
 public class JsonPoint: Codable {
     let latitude: Double
@@ -67,6 +68,101 @@ public class JsonPolygon: Codable {
         }
 
         return YMKPolygon(outerRing: YMKLinearRing(points: polygonPoints), innerRings: [])
+    }
+}
+
+public class JsonBoundingBox: Codable {
+    let southWest: JsonPoint
+    let northEast: JsonPoint
+
+    public required init(boundingBox: YMKBoundingBox) {
+        self.southWest = JsonPoint(point: boundingBox.southWest)
+        self.northEast = JsonPoint(point: boundingBox.northEast)
+    }
+
+    public func toBoundingBox() -> YMKBoundingBox {
+        return YMKBoundingBox(
+                southWest: southWest.toPoint(),
+                northEast: northEast.toPoint()
+        )
+    }
+}
+
+public class JsonDistance: Codable {
+    let value: Double
+    let text: String
+
+    public required init(distance: YMKLocalizedValue) {
+        self.value = distance.value
+        self.text = distance.text
+    }
+}
+
+public class JsonSuggestResult: Encodable {
+    let isError: Bool
+    let error: String?
+    let items: [JsonSuggestItem]
+
+    public required init(items: [YMKSuggestItem]?, error: Error?) {
+        self.isError = error != nil;
+        self.error = error?.localizedDescription
+
+        var results: [JsonSuggestItem] = []
+        if items != nil {
+            for item in items! {
+                results.append(JsonSuggestItem(item: item))
+            }
+        }
+        self.items = results;
+    }
+}
+
+public class JsonSuggestItem: Codable {
+    let type: String
+    let title: String
+    let subtitle: String?
+    let searchText: String
+    let displayText: String?
+    let isPersonal: Bool
+    let isWordItem: Bool
+    let action: String
+
+    let distance: JsonDistance?
+
+    let tags: [String]
+
+    public required init(item: YMKSuggestItem) {
+        switch item.type {
+        case YMKSuggestItemType.unknown:
+            self.type = "unknown"
+            break;
+        case YMKSuggestItemType.transit:
+            self.type = "transit"
+            break;
+        case YMKSuggestItemType.toponym:
+            self.type = "toponym"
+            break;
+        case YMKSuggestItemType.business:
+            self.type = "business"
+            break;
+        }
+
+        self.title = item.title.text
+        self.subtitle = item.subtitle?.text
+        self.searchText = item.searchText
+        self.displayText = item.displayText
+        self.isPersonal = item.isPersonal
+        self.isWordItem = item.isWordItem
+
+        self.distance = item.distance != nil ? JsonDistance(distance: item.distance!) : nil
+
+        self.action = item.action == YMKSuggestItemAction.search ? "search" : "substitute"
+
+        var tags: [String] = []
+        for tag in item.tags {
+            tags.append(tag)
+        }
+        self.tags = tags
     }
 }
 

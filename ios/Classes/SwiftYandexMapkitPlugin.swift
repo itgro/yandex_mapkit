@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import YandexMapKit
+import YandexMapKitSearch
 
 extension FlutterMethodCall {
     func fromJson<T>(_ type: T.Type) throws -> T where T: Decodable {
@@ -20,13 +21,18 @@ extension UIColor {
     }
 }
 
-public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin {
+public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     static var sharedInstance: SwiftYandexMapkitPlugin?
 
     let channel: FlutterMethodChannel!
     let registrar: FlutterPluginRegistrar!
 
+    let suggestChannel: FlutterEventChannel
+
     var controller: YandexMapController?
+    var manager: YMKSearchManager?
+
+    var eventSink: FlutterEventSink?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "yandex_mapkit", binaryMessenger: registrar.messenger())
@@ -44,18 +50,73 @@ public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin {
     public init(channel: FlutterMethodChannel!, registrar: FlutterPluginRegistrar!) {
         self.channel = channel
         self.registrar = registrar
+        self.suggestChannel = FlutterEventChannel(
+                name: "yandex_mapkit_suggest_result",
+                binaryMessenger: registrar.messenger()
+        )
         super.init()
+
+        self.suggestChannel.setStreamHandler(self)
+    }
+
+    public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        self.eventSink = events
+        return nil
+    }
+
+    public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        self.eventSink = nil
+        return nil
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "setApiKey":
             setApiKey(call)
+            let search: YMKSearch = YMKSearch.sharedInstance()
+            let type: YMKSearchSearchManagerType = YMKSearchSearchManagerType.combined
+            self.manager = search.createSearchManager(with: type)
+            result(nil)
+            break;
+        case "cancelSuggest":
+            self.manager?.cancelSuggest()
+            break;
+        case "suggest":
+            let responseHandler = {
+                (items: [YMKSuggestItem]?, error: Error?) in
+                if self.eventSink != nil {
+                    let data = try! JSONEncoder().encode(JsonSuggestResult(items: items, error: error))
+                    self.eventSink!(String(data: data, encoding: .utf8))
+                }
+            }
+
+            let params: SuggestArguments = try! call.fromJson(SuggestArguments.self)
+            let options: YMKSearchOptions = YMKSearchOptions()
+
+            if params.type == "biz" {
+                options.searchTypes = YMKSearchType.biz
+            } else if params.type == "geo" {
+                options.searchTypes = YMKSearchType.geo
+            }
+
+            manager?.suggest(
+                    withText: params.text,
+                    window: params.window.toBoundingBox(),
+                    searchOptions: options,
+                    responseHandler: responseHandler
+            )
+
             result(nil)
             break;
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+
+    internal class SuggestArguments: Decodable {
+        let text: String
+        let type: String
+        let window: JsonBoundingBox
     }
 
     private func setApiKey(_ call: FlutterMethodCall) {
