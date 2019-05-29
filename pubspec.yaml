@@ -10,9 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  yandex_geometry:
-    git:
-      url: https://github.com/itgro/yandex_geometry.git
 
 flutter:
   plugin:

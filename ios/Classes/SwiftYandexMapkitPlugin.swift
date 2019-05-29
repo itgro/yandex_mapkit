@@ -69,27 +69,32 @@ public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin, FlutterStreamHand
         return nil
     }
 
+    private func getSearchManager() -> YMKSearchManager {
+        if self.manager == nil {
+            self.manager = YMKSearch.sharedInstance().createSearchManager(with: .online)
+        }
+        
+        return self.manager!
+    }
+    
+    private func suggestResponseHandler(items: [YMKSuggestItem]?, error: Error?) {
+        if self.eventSink != nil {
+            let data = try! JSONEncoder().encode(JsonSuggestResult(items: items, error: error))
+            self.eventSink!(String(data: data, encoding: .utf8))
+        }
+    }
+    
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "setApiKey":
             setApiKey(call)
-            let search: YMKSearch = YMKSearch.sharedInstance()
-            let type: YMKSearchSearchManagerType = YMKSearchSearchManagerType.combined
-            self.manager = search.createSearchManager(with: type)
             result(nil)
             break;
         case "cancelSuggest":
             self.manager?.cancelSuggest()
+            result(nil)
             break;
         case "suggest":
-            let responseHandler = {
-                (items: [YMKSuggestItem]?, error: Error?) in
-                if self.eventSink != nil {
-                    let data = try! JSONEncoder().encode(JsonSuggestResult(items: items, error: error))
-                    self.eventSink!(String(data: data, encoding: .utf8))
-                }
-            }
-
             let params: SuggestArguments = try! call.fromJson(SuggestArguments.self)
             let options: YMKSearchOptions = YMKSearchOptions()
 
@@ -99,11 +104,11 @@ public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                 options.searchTypes = YMKSearchType.geo
             }
 
-            manager?.suggest(
+            self.getSearchManager().suggest(
                     withText: params.text,
                     window: params.window.toBoundingBox(),
                     searchOptions: options,
-                    responseHandler: responseHandler
+                    responseHandler: self.suggestResponseHandler
             )
 
             result(nil)

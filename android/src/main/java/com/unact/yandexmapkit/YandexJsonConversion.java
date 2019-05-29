@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 import com.yandex.mapkit.Animation;
 import com.yandex.mapkit.GeoObject;
 import com.yandex.mapkit.GeoObjectCollection;
+import com.yandex.mapkit.LocalizedValue;
 import com.yandex.mapkit.atom.Link;
 import com.yandex.mapkit.geometry.BoundingBox;
 import com.yandex.mapkit.geometry.LinearRing;
@@ -17,6 +18,7 @@ import com.yandex.mapkit.search.Response;
 import com.yandex.mapkit.search.Search;
 import com.yandex.mapkit.search.SearchOptions;
 import com.yandex.mapkit.search.SearchType;
+import com.yandex.mapkit.search.SuggestItem;
 import com.yandex.mapkit.search.ToponymObjectMetadata;
 import com.yandex.runtime.Error;
 import com.yandex.runtime.any.Collection;
@@ -110,6 +112,89 @@ class YandexJsonConversion {
             }
 
             return new Polygon(new LinearRing(polygonPoints), new ArrayList<LinearRing>());
+        }
+    }
+
+    static class JsonDistance {
+        double value;
+        String text;
+
+        JsonDistance(LocalizedValue distance) {
+            this.value = distance.getValue();
+            this.text = distance.getText();
+        }
+    }
+
+    static class JsonSuggestResult {
+        boolean isError;
+        String error;
+        List<JsonSuggestItem> items;
+
+
+        JsonSuggestResult(List<SuggestItem> list) {
+            isError = false;
+            error = null;
+
+            items = new ArrayList<>();
+
+            for (SuggestItem item : list) {
+                items.add(new JsonSuggestItem(item));
+            }
+        }
+
+        JsonSuggestResult(Error error) {
+            this.isError = true;
+            this.error = error.getClass().getCanonicalName();
+            this.items = new ArrayList<>();
+        }
+    }
+
+    static class JsonSuggestItem {
+        String type;
+        String title;
+        String subtitle;
+        String searchText;
+        String displayText;
+        String action;
+        boolean isPersonal;
+        boolean isWordItem;
+
+        JsonDistance distance;
+
+        List<String> tags;
+
+        JsonSuggestItem(SuggestItem item) {
+            switch (item.getType()) {
+                case UNKNOWN:
+                    this.type = "unknown";
+                    break;
+                case TOPONYM:
+                    this.type = "toponym";
+                    break;
+                case BUSINESS:
+                    this.type = "business";
+                    break;
+                case TRANSIT:
+                    this.type = "transit";
+                    break;
+            }
+
+            this.title = item.getTitle().getText();
+            if (item.getSubtitle() != null) {
+                this.subtitle = item.getSubtitle().getText();
+            }
+            this.searchText = item.getSearchText();
+            this.displayText = item.getDisplayText();
+            this.isPersonal = item.getIsPersonal();
+            this.isWordItem = item.getIsWordItem();
+
+            if (item.getDistance() != null) {
+                this.distance = new JsonDistance(item.getDistance());
+            }
+
+            this.action = item.getAction() == SuggestItem.Action.SEARCH ? "search" : "substitute";
+
+            this.tags = item.getTags();
         }
     }
 

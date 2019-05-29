@@ -108,6 +108,39 @@ class SuggestItem {
           map, "tags", (String value) => value),
     );
   }
+
+  @override
+  String toString() =>
+      'SuggestItem{type: $type, title: $title, subtitle: $subtitle, searchText: $searchText, displayText: $displayText, isPersonal: $isPersonal, isWordItem: $isWordItem, action: $action, distance: $distance, tags: $tags}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SuggestItem &&
+          runtimeType == other.runtimeType &&
+          type == other.type &&
+          title == other.title &&
+          subtitle == other.subtitle &&
+          searchText == other.searchText &&
+          displayText == other.displayText &&
+          isPersonal == other.isPersonal &&
+          isWordItem == other.isWordItem &&
+          action == other.action &&
+          distance == other.distance &&
+          tags == other.tags;
+
+  @override
+  int get hashCode =>
+      type.hashCode ^
+      title.hashCode ^
+      subtitle.hashCode ^
+      searchText.hashCode ^
+      displayText.hashCode ^
+      isPersonal.hashCode ^
+      isWordItem.hashCode ^
+      action.hashCode ^
+      distance.hashCode ^
+      tags.hashCode;
 }
 
 @immutable
@@ -150,6 +183,22 @@ class SuggestResult {
       );
     }
   }
+
+  @override
+  String toString() =>
+      'SuggestResult{isError: $isError, error: $error, items: $items}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SuggestResult &&
+          runtimeType == other.runtimeType &&
+          isError == other.isError &&
+          error == other.error &&
+          items == other.items;
+
+  @override
+  int get hashCode => isError.hashCode ^ error.hashCode ^ items.hashCode;
 }
 
 enum SuggestItemAction { Search, Substitute }

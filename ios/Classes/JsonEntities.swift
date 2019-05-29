@@ -157,12 +157,8 @@ public class JsonSuggestItem: Codable {
         self.distance = item.distance != nil ? JsonDistance(distance: item.distance!) : nil
 
         self.action = item.action == YMKSuggestItemAction.search ? "search" : "substitute"
-
-        var tags: [String] = []
-        for tag in item.tags {
-            tags.append(tag)
-        }
-        self.tags = tags
+        
+        self.tags = item.tags
     }
 }
 
