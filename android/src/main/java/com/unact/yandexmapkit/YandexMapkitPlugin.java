@@ -16,16 +16,16 @@ import com.unact.yandexmapkit.YandexJsonConversion.JsonBoundingBox;
 import com.unact.yandexmapkit.YandexJsonConversion.JsonSuggestResult;
 import com.yandex.mapkit.MapKitFactory;
 import com.yandex.mapkit.search.SearchFactory;
+import com.yandex.mapkit.search.SearchManager;
 import com.yandex.mapkit.search.SearchManagerType;
 import com.yandex.mapkit.search.SearchOptions;
 import com.yandex.mapkit.search.SearchType;
 import com.yandex.mapkit.search.SuggestItem;
-import com.yandex.mapkit.search.SearchManager;
 import com.yandex.runtime.Error;
 
 import java.util.List;
 
-public class YandexMapkitPlugin implements MethodCallHandler, SearchManager.SuggestListener, EventChannel.StreamHandler {
+public class YandexMapkitPlugin implements MethodCallHandler, EventChannel.StreamHandler {
     private static boolean isApiKeySet = false;
 
     @SuppressWarnings("FieldCanBeLocal")
@@ -72,24 +72,6 @@ public class YandexMapkitPlugin implements MethodCallHandler, SearchManager.Sugg
         }
 
         return manager;
-    }
-
-    @Override
-    public void onSuggestResponse(@NonNull List<SuggestItem> list) {
-        JsonSuggestResult result = new JsonSuggestResult(list);
-
-        if (eventSink != null) {
-            eventSink.success(new Gson().toJson(result));
-        }
-    }
-
-    @Override
-    public void onSuggestError(@NonNull Error error) {
-        JsonSuggestResult result = new JsonSuggestResult(error);
-
-        if (eventSink != null) {
-            eventSink.success(result);
-        }
     }
 
     @Override
@@ -142,7 +124,25 @@ public class YandexMapkitPlugin implements MethodCallHandler, SearchManager.Sugg
                         params.text,
                         params.window.toBoundingBox(),
                         options,
-                        this
+                        new SearchManager.SuggestListener() {
+                            @Override
+                            public void onSuggestResponse(@NonNull List<SuggestItem> list) {
+                                JsonSuggestResult result = new JsonSuggestResult(list);
+
+                                if (eventSink != null) {
+                                    eventSink.success(new Gson().toJson(result));
+                                }
+                            }
+
+                            @Override
+                            public void onSuggestError(@NonNull Error error) {
+                                JsonSuggestResult result = new JsonSuggestResult(error);
+
+                                if (eventSink != null) {
+                                    eventSink.success(new Gson().toJson(result));
+                                }
+                            }
+                        }
                 );
             }
             break;
