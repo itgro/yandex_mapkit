@@ -12,12 +12,22 @@ extension FlutterMethodCall {
 
 extension UIColor {
     static func fromInteger(_ intValue: Int) -> UIColor {
-        let alpha = CGFloat((intValue & 0xFF000000) >> 24) / 255.0
-        let red = CGFloat((intValue & 0x00FF0000) >> 16) / 255.0
-        let green = CGFloat((intValue & 0x0000FF00) >> 8) / 255.0
-        let blue = CGFloat(intValue & 0x000000FF) / 255.0
-
-        return UIColor(red: red, green: green, blue: blue, alpha: alpha)
+        let intAlpha = (UInt(intValue) & UInt(0xFF000000)) >> 24;
+        let intRed   = (intValue & 0x00FF0000) >> 16;
+        let intGreen = (intValue & 0x0000FF00) >> 8;
+        let intBlue  = (intValue & 0x000000FF);
+        
+        let alpha = CGFloat(intAlpha) / 255.0
+        let red   = CGFloat(intRed)   / 255.0
+        let green = CGFloat(intGreen) / 255.0
+        let blue  = CGFloat(intBlue)  / 255.0
+        
+        return UIColor(
+            red: red,
+            green: green,
+            blue: blue,
+            alpha: alpha
+        )
     }
 }
 
