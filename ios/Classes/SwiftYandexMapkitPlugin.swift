@@ -88,11 +88,9 @@ public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin, FlutterStreamHand
     }
     
     private func suggestResponseHandler(items: [YMKSuggestItem]?, error: Error?) {
-        DispatchQueue.main.async {
-            if self.eventSink != nil {
-                let data = try! JSONEncoder().encode(JsonSuggestResult(items: items, error: error))
-                self.eventSink!(String(data: data, encoding: .utf8))
-            }
+        if self.eventSink != nil {
+            let data = try! JSONEncoder().encode(JsonSuggestResult(items: items, error: error))
+            self.eventSink!(String(data: data, encoding: .utf8))
         }
     }
     
@@ -116,14 +114,12 @@ public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                 options.searchTypes = YMKSearchType.geo
             }
 
-            DispatchQueue.main.async {
-                self.getSearchManager().suggest(
-                    withText: params.text,
-                    window: params.window.toBoundingBox(),
-                    searchOptions: options,
-                    responseHandler: self.suggestResponseHandler
-                )
-            }
+            self.getSearchManager().suggest(
+                withText: params.text,
+                window: params.window.toBoundingBox(),
+                searchOptions: options,
+                responseHandler: self.suggestResponseHandler
+            )
 
             result(nil)
             break;

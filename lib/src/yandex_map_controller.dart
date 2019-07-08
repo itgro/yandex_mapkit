@@ -12,7 +12,8 @@ import 'entities.dart';
 class YandexMapController {
   final MethodChannel _channel;
 
-  final _cameraPositionController = StreamController<CameraPositionEvent>();
+  final _cameraPositionController =
+      StreamController<CameraPositionEvent>.broadcast();
 
   Stream<CameraPositionEvent> get onCameraPositionChanged =>
       _cameraPositionController.stream;
