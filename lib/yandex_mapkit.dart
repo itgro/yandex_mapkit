@@ -39,7 +39,8 @@ class YandexSuggestController {
     if (_onSuggestResult == null) {
       _onSuggestResult = _resultChannel
           .receiveBroadcastStream()
-          .map<SuggestResult>((dynamic event) => SuggestResult.fromString(event.toString()));
+          .map<SuggestResult>(
+              (dynamic event) => SuggestResult.fromString(event.toString()));
     }
 
     return _onSuggestResult;

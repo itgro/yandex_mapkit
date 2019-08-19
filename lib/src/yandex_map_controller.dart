@@ -53,7 +53,8 @@ class YandexMapController {
 //  }
 
   Future<void> addPolygon({
-    @required List<Point> points,
+    @required List<Point> outerPoints,
+    @required List<Point> innerPoints,
     @required Color fillColor,
     @required Color strokeColor,
     @required double strokeWidth,
@@ -62,7 +63,10 @@ class YandexMapController {
     return _channel.invokeMethod(
       "addPolygon",
       json.encode({
-        "points": points
+        "outerPoints": outerPoints
+            .map<Map>((Point point) => point.toMap())
+            .toList(growable: false),
+        "innerPoints": innerPoints
             .map<Map>((Point point) => point.toMap())
             .toList(growable: false),
         "fillColor": fillColor.value,

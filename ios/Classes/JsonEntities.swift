@@ -46,14 +46,16 @@ public class JsonPosition: Codable {
 }
 
 public class JsonPolygon: Codable {
-    let points: [JsonPoint]
+    let innerPoints: [JsonPoint]
+    let outerPoints: [JsonPoint]
     let fillColor: Int
     let strokeColor: Int
     let strokeWidth: Float
     let zIndex: Float
 
-    public required init(points: [JsonPoint], fillColor: Int, strokeColor: Int, strokeWidth: Float, zIndex: Float) {
-        self.points = points
+    public required init(outerPoints: [JsonPoint], innerPoints: [JsonPoint], fillColor: Int, strokeColor: Int, strokeWidth: Float, zIndex: Float) {
+        self.outerPoints = outerPoints
+        self.innerPoints = innerPoints
         self.fillColor = fillColor
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
@@ -61,13 +63,18 @@ public class JsonPolygon: Codable {
     }
 
     public func getPolygon() -> YMKPolygon {
-        var polygonPoints = [YMKPoint]()
+        var yOuterPoints = [YMKPoint]()
+        var yInnerPoints = [YMKPoint]()
 
-        for point in points {
-            polygonPoints.append(point.toPoint())
+        for outerPoint in outerPoints {
+            yOuterPoints.append(outerPoint.toPoint())
         }
 
-        return YMKPolygon(outerRing: YMKLinearRing(points: polygonPoints), innerRings: [])
+        for innerPoint in innerPoints {
+            yInnerPoints.append(innerPoint.toPoint())
+        }
+        
+        return YMKPolygon(outerRing: YMKLinearRing(points: yOuterPoints), innerRings: [YMKLinearRing(points: yInnerPoints)])
     }
 }
 

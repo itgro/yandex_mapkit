@@ -57,7 +57,7 @@ class _MyAppState extends State<MyApp> {
                   ];
 
                   controller.addPolygon(
-                    points: points,
+                    outerPoints: points,
                     fillColor: Color(0xFF70C3BE).withOpacity(0.51),
                     strokeColor: Color(0xFFF9F4F4),
                     strokeWidth: 1,
