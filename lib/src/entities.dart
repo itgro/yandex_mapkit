@@ -54,16 +54,16 @@ class SuggestItem {
   final List<String> tags;
 
   SuggestItem({
-    this.type,
-    this.title,
-    this.subtitle,
-    this.searchText,
-    this.displayText,
-    this.isPersonal,
-    this.isWordItem,
-    this.action,
-    this.distance,
-    this.tags,
+    @required this.type,
+    @required this.title,
+    this.subtitle = '',
+    this.searchText = '',
+    this.displayText = '',
+    @required this.isPersonal,
+    @required this.isWordItem,
+    @required this.action,
+    this.distance = null,
+    this.tags = const [],
   });
 
   factory SuggestItem.fromMap(Map map) {
@@ -150,7 +150,7 @@ class SuggestResult {
   final List<SuggestItem> items;
 
   SuggestResult({
-    this.isError,
+    this.isError = false,
     this.error,
     this.items,
   });
