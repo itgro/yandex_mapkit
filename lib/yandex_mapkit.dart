@@ -11,9 +11,10 @@ import 'src/entities.dart';
 
 export 'src/entities.dart';
 export 'src/events.dart';
-export 'src/placemark.dart';
+export 'src/marker.dart';
 export 'src/yandex_map.dart';
 export 'src/yandex_map_controller.dart';
+export 'src/bitmap.dart';
 
 typedef SuggestResultHandler = void Function(List<SuggestItem>);
 typedef SuggestErrorHandler = void Function(String error);

@@ -1,5 +1,9 @@
 package com.unact.yandexmapkit;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.util.Log;
+
 import androidx.annotation.Nullable;
 
 import com.yandex.mapkit.Animation;
@@ -22,12 +26,88 @@ import com.yandex.mapkit.search.SuggestItem;
 import com.yandex.mapkit.search.ToponymObjectMetadata;
 import com.yandex.runtime.Error;
 import com.yandex.runtime.any.Collection;
+import com.yandex.runtime.image.ImageProvider;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import io.flutter.view.FlutterMain;
+
 class YandexJsonConversion {
+    static class ImageConversion {
+        static Bitmap scaleBitmap(Bitmap bitmap, double scale) {
+            return resizeBitmap(bitmap, (int) (bitmap.getWidth() * scale), (int) (bitmap.getHeight() * scale));
+        }
+
+        static Bitmap resizeBitmap(Bitmap bitmap, int targetW, int targetH) {
+            double widthRatio = (double) targetW / (double) bitmap.getWidth();
+            double heightRatio = (double) targetH / (double) bitmap.getHeight();
+
+            double newWidth;
+            double newHeight;
+
+            if (widthRatio > heightRatio) {
+                newWidth = bitmap.getWidth() * heightRatio;
+                newHeight = bitmap.getHeight() * heightRatio;
+            } else {
+                newWidth = bitmap.getWidth() * widthRatio;
+                newHeight = bitmap.getHeight() * widthRatio;
+            }
+
+            return Bitmap.createScaledBitmap(bitmap, (int) newWidth, (int) newHeight, false);
+        }
+
+        static ImageProvider fromFlutter(Context context, Object o) {
+            try {
+                final List<?> data = (List<?>) o;
+
+                switch ((String) data.get(0)) {
+                    case "defaultMarker": {
+                        break;
+                    }
+
+                    case "fromAsset": {
+                        String assetName;
+
+                        if (data.size() == 2) {
+                            assetName = FlutterMain.getLookupKeyForAsset((String) data.get(1));
+                        } else {
+                            assetName = FlutterMain.getLookupKeyForAsset((String) data.get(1), (String) data.get(2));
+                        }
+
+                        return ImageProvider.fromAsset(context, assetName);
+                    }
+
+                    case "fromAssetImage": {
+                        String assetName = FlutterMain.getLookupKeyForAsset((String) data.get(1));
+                        ImageProvider provider = ImageProvider.fromAsset(context, assetName);
+
+                        if (data.size() == 3) {
+                            double scaleParam = Double.parseDouble((String) data.get(2));
+                            return ImageProvider.fromBitmap(scaleBitmap(provider.getImage(), scaleParam));
+                        } else if (data.size() == 4) {
+                            int width = (int) Double.parseDouble((String) data.get(2));
+                            int height = (int) Double.parseDouble((String) data.get(3));
+
+                            return ImageProvider.fromBitmap(
+                                    resizeBitmap(
+                                            provider.getImage(),
+                                            (int) (width * context.getResources().getDisplayMetrics().density),
+                                            (int) (height * context.getResources().getDisplayMetrics().density)
+                                    )
+                            );
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.d("FLUTTER", e.getLocalizedMessage());
+            }
+
+            return null;
+        }
+    }
+
     static class JsonPoint {
         double latitude;
         double longitude;
@@ -195,6 +275,21 @@ class YandexJsonConversion {
             this.action = item.getAction() == SuggestItem.Action.SEARCH ? "search" : "substitute";
 
             this.tags = item.getTags();
+        }
+    }
+
+    static class JsonMapObjectEventWithPoint {
+        String id;
+        JsonPoint point;
+
+        JsonMapObjectEventWithPoint(String id, JsonPoint point) {
+            this.id = id;
+            this.point = point;
+        }
+
+        JsonMapObjectEventWithPoint(String id, Point point) {
+            this.id = id;
+            this.point = new JsonPoint(point);
         }
     }
 

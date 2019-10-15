@@ -31,6 +31,88 @@ extension UIColor {
     }
 }
 
+extension UIImage {
+    private func scale(scale: Float) -> UIImage {
+        if (fabs(scale - 1) > 1e-3) {
+            return UIImage(
+                cgImage: cgImage!,
+                scale: self.scale * CGFloat(scale),
+                orientation: imageOrientation
+            )
+        }
+        
+        return self
+    }
+    
+    private func resize(targetSize: CGSize) -> UIImage {
+        let widthRatio  = targetSize.width  / size.width
+        let heightRatio = targetSize.height / size.height
+
+        // Figure out what our orientation is, and use that to form the rectangle
+        var newSize: CGSize
+        if(widthRatio > heightRatio) {
+            newSize = CGSize(width: size.width * heightRatio, height: size.height * heightRatio)
+        } else {
+            newSize = CGSize(width: size.width * widthRatio,  height: size.height * widthRatio)
+        }
+
+        // This is the rect that we've calculated out and this is what is actually used below
+        let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+
+        // Actually do the resizing to the rect using the ImageContext stuff
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+        draw(in: rect)
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+
+        return newImage!
+    }
+    
+    public static func fromFlutter(registrar: FlutterPluginRegistrar, data: [String]) -> UIImage? {
+        var image: UIImage?
+        
+        if (!data.isEmpty) {
+           if (data[0] == "defaultMarker") {
+                // TODO default marker implementation
+            } else if (data[0] == "fromAsset") {
+                if (data.count == 2) {
+                    image = UIImage(named: registrar.lookupKey(forAsset: data[1]))
+                } else {
+                    image = UIImage(named: registrar.lookupKey(forAsset: data[1], fromPackage: data[2]))
+                }
+            } else if (data[0] == "fromAssetImage") {
+                image = UIImage(named: registrar.lookupKey(forAsset: data[1]))
+            
+                if (image != nil) {
+                    if (data.count == 3) {
+                       let scaleParam: Float = Float(data[2])!
+                       
+                        image = image!.scale(scale: scaleParam)
+                   } else if (data.count == 4) {
+                       let width: Float = Float(data[2])!
+                       let height: Float = Float(data[3])!
+                       
+                        image = image!.resize(
+                            targetSize: CGSize(
+                                width: CGFloat(width) * UIScreen.main.scale,
+                                height: CGFloat(height) * UIScreen.main.scale
+                            )
+                        )
+                   } else {
+                       // TODO Error
+                   }
+                }
+            
+               
+            } else if (data[0] == "fromBytes") {
+                // TODO from bytes implementation
+            }
+        }
+        
+        return image
+    }
+}
+
 public class SwiftYandexMapkitPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     static var sharedInstance: SwiftYandexMapkitPlugin?
 

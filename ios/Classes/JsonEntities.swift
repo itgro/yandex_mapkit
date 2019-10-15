@@ -45,6 +45,16 @@ public class JsonPosition: Codable {
     }
 }
 
+public class JsonMapObjectEventWithPoint: Codable {
+    let id: String
+    let point: JsonPoint
+    
+    public required init(id: String, point: JsonPoint) {
+        self.id = id
+        self.point = point
+    }
+}
+
 public class JsonPolygon: Codable {
     let innerPoints: [JsonPoint]
     let outerPoints: [JsonPoint]
