@@ -4,28 +4,15 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.Log;
 
-import androidx.annotation.Nullable;
-
 import com.yandex.mapkit.Animation;
-import com.yandex.mapkit.GeoObject;
-import com.yandex.mapkit.GeoObjectCollection;
 import com.yandex.mapkit.LocalizedValue;
-import com.yandex.mapkit.atom.Link;
 import com.yandex.mapkit.geometry.BoundingBox;
 import com.yandex.mapkit.geometry.LinearRing;
 import com.yandex.mapkit.geometry.Point;
 import com.yandex.mapkit.geometry.Polygon;
 import com.yandex.mapkit.map.CameraPosition;
-import com.yandex.mapkit.search.Address;
-import com.yandex.mapkit.search.BusinessObjectMetadata;
-import com.yandex.mapkit.search.Response;
-import com.yandex.mapkit.search.Search;
-import com.yandex.mapkit.search.SearchOptions;
-import com.yandex.mapkit.search.SearchType;
 import com.yandex.mapkit.search.SuggestItem;
-import com.yandex.mapkit.search.ToponymObjectMetadata;
 import com.yandex.runtime.Error;
-import com.yandex.runtime.any.Collection;
 import com.yandex.runtime.image.ImageProvider;
 
 import java.util.ArrayList;
@@ -170,14 +157,16 @@ class YandexJsonConversion {
     }
 
     static class JsonPolygon {
-        LinkedList<JsonPoint> points;
+        LinkedList<JsonPoint> outerPoints;
+        LinkedList<JsonPoint> innerPoints;
         long fillColor;
         long strokeColor;
         float strokeWidth;
         float zIndex;
 
-        JsonPolygon(LinkedList<JsonPoint> points, int fillColor, int strokeColor, float strokeWidth, float zIndex) {
-            this.points = points;
+        JsonPolygon(LinkedList<JsonPoint> outerPoints, LinkedList<JsonPoint> innerPoints, int fillColor, int strokeColor, float strokeWidth, float zIndex) {
+            this.outerPoints = outerPoints;
+            this.innerPoints = innerPoints;
             this.fillColor = fillColor;
             this.strokeColor = strokeColor;
             this.strokeWidth = strokeWidth;
@@ -185,13 +174,25 @@ class YandexJsonConversion {
         }
 
         Polygon getPolygon() {
-            List<Point> polygonPoints = new ArrayList<>();
+            List<Point> polygonOuterPoints = new ArrayList<>();
 
-            for (JsonPoint point : points) {
-                polygonPoints.add(point.toPoint());
+            for (JsonPoint point : outerPoints) {
+                polygonOuterPoints.add(point.toPoint());
             }
 
-            return new Polygon(new LinearRing(polygonPoints), new ArrayList<LinearRing>());
+            List<Point> polygonInnerPoints = new ArrayList<>();
+
+            for (JsonPoint point : innerPoints) {
+                polygonInnerPoints.add(point.toPoint());
+            }
+
+            ArrayList<LinearRing> innerRings = new ArrayList<>();
+
+            if (polygonInnerPoints.size() > 0) {
+                innerRings.add(new LinearRing(polygonInnerPoints));
+            }
+
+            return new Polygon(new LinearRing(polygonOuterPoints), innerRings);
         }
     }
 
